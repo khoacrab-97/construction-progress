@@ -169,6 +169,19 @@
       min-height: 26px
     }
 
+    .app-version-label {
+      min-height: 26px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #fff;
+      color: var(--ink-soft);
+      font-size: 12px;
+      white-space: nowrap
+    }
+
     .rpanel[data-tab="file"] button {
       min-height: 40px;
       padding: 0 14px;
@@ -1935,6 +1948,7 @@
           <div class="grows">
             <button class="primary" id="btnHelp" data-i18n="btnHelp">📖 Hướng dẫn sử dụng</button>
             <button id="btnTips" data-i18n="btnTips">💡 Mẹo nhập liệu & In ấn</button>
+            <span class="app-version-label" id="helpAppVersion">Phiên bản: đang tải</span>
           </div>
           <div class="gcap" data-i18n="gHelp">Trợ giúp</div>
         </div>
@@ -2922,6 +2936,20 @@
     const DAY = 86400000;
     const $ = s => document.querySelector(s);
     const IS_DESKTOP = !!(window.desktop && window.desktop.isElectron);
+
+    function appVersionLabel() {
+      const shortVersion = String(APPVER || "")
+        .replace(/^Tiến độ thi công\s*/i, "")
+        .trim();
+      return "Phiên bản: " + (shortVersion || "đang tải");
+    }
+
+    function syncAppVersionLabels() {
+      const helpVersion = $("#helpVer");
+      if (helpVersion) helpVersion.textContent = APPVER;
+      const helpAppVersion = $("#helpAppVersion");
+      if (helpAppVersion) helpAppVersion.textContent = appVersionLabel();
+    }
 
     /* ---------- Date utils ---------- */
     function mkDate(y, m, d) { return new Date(y, m - 1, d); }
@@ -7659,7 +7687,7 @@
       $("#wtPrev").onclick = () => { wtM--; if (wtM < 0) { wtM = 11; wtY--; } renderHolCal(); };
       $("#wtNext").onclick = () => { wtM++; if (wtM > 11) { wtM = 0; wtY++; } renderHolCal(); };
       $("#wtClear").onclick = () => { wtHols.clear(); renderHolCal(); };
-      $("#helpVer").textContent = APPVER;
+      syncAppVersionLabels();
       $("#helpCheckUpd").onclick = () => checkUpdate(true);
       $("#btnHelp").onclick = () => $("#helpOverlay").style.display = "flex";
       $("#helpClose").onclick = () => $("#helpOverlay").style.display = "none";
@@ -8245,7 +8273,7 @@
       try {
         const v = await window.desktop.getAppVersion();
         if (v) APPVER = "Tiến độ thi công " + v;
-        const hv = $("#helpVer"); if (hv) hv.textContent = APPVER;
+        syncAppVersionLabels();
         updateWindowTitle();
       } catch (e) { }
       if (window.desktop.onOpenFileRequest) {

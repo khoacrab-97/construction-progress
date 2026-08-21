@@ -29,6 +29,23 @@ function createUpdateService() {
     updateDownloaded = true;
   });
 
+  function readableUpdateError(error) {
+    const detail = error && error.message ? error.message : String(error || "");
+    if (/404|not found|latest\.yml/i.test(detail)) {
+      return {
+        status: "error",
+        message: "Không đọc được GitHub Release. Kiểm tra kho GitHub có đang private, release có đang draft, hoặc release có thiếu latest.yml không.",
+        detail
+      };
+    }
+
+    return {
+      status: "error",
+      message: "Không kiểm tra được cập nhật.",
+      detail
+    };
+  }
+
   function isConfigured() {
     const updateConfigPath = path.join(process.resourcesPath || "", "app-update.yml");
     return fs.existsSync(updateConfigPath);
@@ -74,10 +91,7 @@ function createUpdateService() {
           updateInfo: result.updateInfo || null
         };
       } catch (error) {
-        return {
-          status: "error",
-          message: error.message || String(error)
-        };
+        return readableUpdateError(error);
       }
     },
 
