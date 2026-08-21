@@ -61,10 +61,93 @@ jobs:
             git push origin "refs/tags/$tag"
           }
 
-      - name: Build và phát hành bản Windows
-        run: npm run release:win
+      - name: Build bản Windows
+        run: npm run build:win -- --publish never
+
+      - name: Kiểm tra file phát hành
+        id: assets
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $installer = "dist/Tien-do-thi-cong-Cai-dat-$version.exe"
+          $blockmap = "$installer.blockmap"
+          $latest = "dist/latest.yml"
+          $appUpdate = "dist/win-unpacked/resources/app-update.yml"
+
+          $requiredFiles = @($installer, $blockmap, $latest, $appUpdate)
+          foreach ($file in $requiredFiles) {
+            if (!(Test-Path $file)) {
+              Write-Host "Các file đang có trong dist:"
+              Get-ChildItem dist -Recurse -File | ForEach-Object {
+                Write-Host "- $($_.FullName) ($($_.Length) bytes)"
+              }
+              throw "Thiếu file phát hành: $file"
+            }
+          }
+
+          "installer=$installer" >> $env:GITHUB_OUTPUT
+          "blockmap=$blockmap" >> $env:GITHUB_OUTPUT
+          "latest=$latest" >> $env:GITHUB_OUTPUT
+
+          Get-Item $installer, $blockmap, $latest | ForEach-Object {
+            Write-Host "Đã tạo $($_.Name) ($($_.Length) bytes)"
+          }
+
+      - name: Upload asset lên GitHub Release
+        shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          $repo = "${{ github.repository }}"
+          $installer = "${{ steps.assets.outputs.installer }}"
+          $blockmap = "${{ steps.assets.outputs.blockmap }}"
+          $latest = "${{ steps.assets.outputs.latest }}"
+
+          gh release view $tag --repo $repo *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag $installer $blockmap $latest `
+              --repo $repo `
+              --verify-tag `
+              --title $tag `
+              --notes "Phát hành $tag" `
+              --latest
+            if ($LASTEXITCODE -ne 0) {
+              throw "Không tạo được GitHub Release $tag."
+            }
+          } else {
+            gh release upload $tag $installer $blockmap $latest --repo $repo --clobber
+            if ($LASTEXITCODE -ne 0) {
+              throw "Không upload được asset lên GitHub Release $tag."
+            }
+          }
+
+      - name: Xác nhận asset release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          $repo = "${{ github.repository }}"
+          $version = "${{ steps.version.outputs.version }}"
+          $expectedAssets = @(
+            "Tien-do-thi-cong-Cai-dat-$version.exe",
+            "Tien-do-thi-cong-Cai-dat-$version.exe.blockmap",
+            "latest.yml"
+          )
+
+          $release = gh release view $tag --repo $repo --json assets | ConvertFrom-Json
+          $assetNames = @($release.assets | ForEach-Object { $_.name })
+          $missingAssets = @($expectedAssets | Where-Object { $assetNames -notcontains $_ })
+
+          if ($missingAssets.Count -gt 0) {
+            Write-Host "Asset đang có trên release:"
+            $assetNames | ForEach-Object { Write-Host "- $_" }
+            throw "Release thiếu asset: $($missingAssets -join ', ')"
+          }
+
+          Write-Host "Release $tag đã có đủ asset:"
+          $expectedAssets | ForEach-Object { Write-Host "- $_" }
 
       - name: Tóm tắt release
         shell: pwsh
