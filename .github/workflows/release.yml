@@ -16,10 +16,12 @@ jobs:
 
     steps:
       - name: Lấy mã nguồn
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Cài Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -37,6 +39,27 @@ jobs:
           npm version $version --no-git-tag-version
           "version=$version" >> $env:GITHUB_OUTPUT
           "tag=v$version" >> $env:GITHUB_OUTPUT
+
+      - name: Tạo git tag cho release
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          $head = git rev-parse HEAD
+
+          git ls-remote --exit-code --tags origin "refs/tags/$tag" *> $null
+          if ($LASTEXITCODE -eq 0) {
+            git fetch --force origin "refs/tags/$tag:refs/tags/$tag"
+            $tagCommit = git rev-list -n 1 $tag
+            if ($tagCommit -ne $head) {
+              throw "Tag $tag đã tồn tại nhưng không trỏ tới commit hiện tại."
+            }
+            Write-Host "Tag $tag đã tồn tại đúng commit hiện tại."
+          } else {
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag $tag $head
+            git push origin "refs/tags/$tag"
+          }
 
       - name: Build và phát hành bản Windows
         run: npm run release:win
