@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld("desktop", {
   setWindowTitle: (title) => ipcRenderer.invoke("app:set-window-title", title),
   closeAfterConfirm: () => ipcRenderer.invoke("app:close-after-confirm"),
   checkForUpdates: () => ipcRenderer.invoke("updates:check"),
+  downloadUpdate: () => ipcRenderer.invoke("updates:download"),
+  quitAndInstall: () => ipcRenderer.invoke("updates:quit-and-install"),
   onOpenFileRequest: (callback) => {
     if (typeof callback !== "function") return () => {};
     openFileRequestCallbacks.add(callback);

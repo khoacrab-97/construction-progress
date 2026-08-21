@@ -1,16 +1,17 @@
 {
   "name": "construction-progress",
   "version": "1.0.0",
-  "description": "Desktop app for construction progress planning and Gantt scheduling.",
-  "productName": "Construction Progress",
-  "author": "Construction Progress",
+  "description": "Ứng dụng quản lý tiến độ thi công và lập biểu đồ Gantt.",
+  "productName": "Tiến độ thi công",
+  "author": "Tiến độ thi công",
   "main": "electron/main.js",
   "private": true,
   "scripts": {
     "start": "node electron/launch.js",
     "dev": "electron .",
     "build": "electron-builder",
-    "build:win": "electron-builder --win --x64"
+    "build:win": "electron-builder --win --x64",
+    "release:win": "electron-builder --win --x64 --publish always"
   },
   "dependencies": {
     "electron-updater": "^6.8.9"
@@ -21,7 +22,7 @@
   },
   "build": {
     "appId": "vn.construction.progress",
-    "productName": "Construction Progress",
+    "productName": "Tiến độ thi công",
     "directories": {
       "output": "dist",
       "buildResources": "assets"
@@ -35,8 +36,8 @@
     "fileAssociations": [
       {
         "ext": "tdtc",
-        "name": "Construction Progress Project",
-        "description": "Construction Progress Project",
+        "name": "Dự án tiến độ thi công",
+        "description": "Tệp dự án tiến độ thi công",
         "role": "Editor"
       }
     ],
@@ -45,15 +46,24 @@
         "nsis"
       ],
       "icon": "assets/icon.ico",
-      "executableName": "Construction Progress"
+      "executableName": "Tien do thi cong",
+      "verifyUpdateCodeSignature": false
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createStartMenuShortcut": true,
       "createDesktopShortcut": true,
-      "shortcutName": "Construction Progress",
-      "artifactName": "${productName} Setup ${version}.${ext}"
-    }
+      "shortcutName": "Tiến độ thi công",
+      "artifactName": "Tien-do-thi-cong-Cai-dat-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "khoacrab-97",
+        "repo": "construction-progress",
+        "releaseType": "release"
+      }
+    ]
   }
 }

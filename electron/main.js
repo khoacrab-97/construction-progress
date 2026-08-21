@@ -6,7 +6,7 @@ const fsSync = require("node:fs");
 const path = require("node:path");
 const { createUpdateService } = require("./update-service");
 
-const APP_NAME = "Construction Progress";
+const APP_NAME = "Tiến độ thi công";
 const PROJECT_EXTENSIONS = new Set([".tdtc", ".json"]);
 
 let mainWindow = null;
@@ -17,9 +17,9 @@ let updateService = null;
 
 function projectFilters() {
   return [
-    { name: "Construction Progress Project (*.tdtc)", extensions: ["tdtc"] },
-    { name: "JSON Project (*.json)", extensions: ["json"] },
-    { name: "All Files (*.*)", extensions: ["*"] }
+    { name: "Dự án tiến độ thi công (*.tdtc)", extensions: ["tdtc"] },
+    { name: "Dự án JSON (*.json)", extensions: ["json"] },
+    { name: "Tất cả tệp (*.*)", extensions: ["*"] }
   ];
 }
 
@@ -63,11 +63,11 @@ function projectDescriptor(filePath) {
 
 async function readProjectFile(filePath) {
   const normalized = normalizeProjectPath(filePath);
-  if (!normalized) throw new Error("Unsupported project file type.");
+  if (!normalized) throw new Error("Định dạng tệp dự án không được hỗ trợ.");
   const text = await fs.readFile(normalized, "utf8");
   const data = JSON.parse(text);
   if (!data || !Array.isArray(data.tasks) || !data.start) {
-    throw new Error("Invalid project file.");
+    throw new Error("Tệp dự án không hợp lệ.");
   }
   currentProjectPath = normalized;
   return {
@@ -79,7 +79,7 @@ async function readProjectFile(filePath) {
 
 async function writeProjectFile(filePath, jsonText) {
   const normalized = normalizeProjectPath(filePath);
-  if (!normalized) throw new Error("Unsupported project file type.");
+  if (!normalized) throw new Error("Định dạng tệp dự án không được hỗ trợ.");
   await fs.writeFile(normalized, jsonText, "utf8");
   currentProjectPath = normalized;
   return {
@@ -201,7 +201,7 @@ ipcMain.handle("app:close-after-confirm", () => {
 ipcMain.handle("project:open", async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   const result = await dialog.showOpenDialog(win, {
-    title: "Open Project",
+    title: "Mở dự án",
     properties: ["openFile"],
     filters: projectFilters()
   });
@@ -225,14 +225,14 @@ ipcMain.handle("project:load-file", async (_event, filePath) => {
 async function saveProject(event, payload, forceSaveAs) {
   const win = BrowserWindow.fromWebContents(event.sender);
   const jsonText = typeof payload?.json === "string" ? payload.json : "";
-  if (!jsonText) return { canceled: false, error: "No project data to save." };
+  if (!jsonText) return { canceled: false, error: "Không có dữ liệu dự án để lưu." };
 
   let targetPath = forceSaveAs ? null : currentProjectPath;
 
   if (!targetPath) {
     const defaultName = safeFileNameFromProjectName(payload?.suggestedName || payload?.projectName);
     const result = await dialog.showSaveDialog(win, {
-      title: forceSaveAs ? "Save Project As" : "Save Project",
+      title: forceSaveAs ? "Lưu dự án thành" : "Lưu dự án",
       defaultPath: defaultName,
       filters: projectFilters()
     });
@@ -255,11 +255,11 @@ ipcMain.handle("project:export-pdf", async (event, payload) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   const defaultName = safeFileNameFromProjectName(payload?.suggestedName || "Tien-do-thi-cong", ".pdf");
   const result = await dialog.showSaveDialog(win, {
-    title: "Export PDF",
+    title: "Xuất PDF",
     defaultPath: defaultName,
     filters: [
-      { name: "PDF Document (*.pdf)", extensions: ["pdf"] },
-      { name: "All Files (*.*)", extensions: ["*"] }
+      { name: "Tài liệu PDF (*.pdf)", extensions: ["pdf"] },
+      { name: "Tất cả tệp (*.*)", extensions: ["*"] }
     ]
   });
 
@@ -286,8 +286,28 @@ ipcMain.handle("updates:check", async () => {
   if (!updateService) {
     return {
       status: "disabled",
-      message: "Update service is not initialized."
+      message: "Dịch vụ cập nhật chưa sẵn sàng."
     };
   }
   return updateService.checkForUpdates();
+});
+
+ipcMain.handle("updates:download", async () => {
+  if (!updateService) {
+    return {
+      status: "disabled",
+      message: "Dịch vụ cập nhật chưa sẵn sàng."
+    };
+  }
+  return updateService.downloadUpdate();
+});
+
+ipcMain.handle("updates:quit-and-install", () => {
+  if (!updateService) {
+    return {
+      status: "disabled",
+      message: "Dịch vụ cập nhật chưa sẵn sàng."
+    };
+  }
+  return updateService.quitAndInstall();
 });

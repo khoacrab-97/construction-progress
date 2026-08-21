@@ -1,0 +1,52 @@
+name: Build và phát hành
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build installer Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Lấy mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Cài Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Cài gói phụ thuộc
+        run: npm ci
+
+      - name: Tạo version release CI
+        id: version
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json | ConvertFrom-Json
+          $parts = $pkg.version.Split(".")
+          $version = "$($parts[0]).$($parts[1]).${{ github.run_number }}"
+          npm version $version --no-git-tag-version
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=v$version" >> $env:GITHUB_OUTPUT
+
+      - name: Build và phát hành bản Windows
+        run: npm run release:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tóm tắt release
+        shell: pwsh
+        run: |
+          "Đã phát hành release ${{ steps.version.outputs.tag }}" >> $env:GITHUB_STEP_SUMMARY
+          Get-ChildItem dist -File | ForEach-Object {
+            "- $($_.Name)" >> $env:GITHUB_STEP_SUMMARY
+          }

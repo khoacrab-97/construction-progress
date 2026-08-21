@@ -1,58 +1,73 @@
-# Construction Progress
+# Tiến độ thi công
 
-Electron desktop packaging for the existing single-file construction progress / Gantt scheduler.
+Ứng dụng desktop Electron cho file HTML quản lý tiến độ thi công và biểu đồ Gantt.
 
-## Development
+## Chạy khi phát triển
 
 ```bash
 npm install
 npm start
 ```
 
-The desktop app loads `src/index.html` through Electron with `contextIsolation: true` and `nodeIntegration: false`.
+Ứng dụng desktop tải `src/index.html` qua Electron với `contextIsolation: true` và `nodeIntegration: false`.
 
-## Windows Build
+## Build Windows
 
 ```bash
 npm run build:win
 ```
 
-Output is written to:
+File build được ghi vào:
 
 ```text
 dist/
 ```
 
-The expected Windows installer name is:
+Tên installer Windows hiện tại:
 
 ```text
-Construction Progress Setup <version>.exe
+Tien-do-thi-cong-Cai-dat-<version>.exe
+```
+
+## Build Và Phát Hành Qua GitHub
+
+Khi push lên `main`, `.github/workflows/release.yml` sẽ chạy trên `windows-latest`.
+Workflow tạo version riêng từ major/minor trong package và số lần chạy GitHub,
+build installer Windows x64, rồi đẩy lên GitHub Releases.
+
+Release sẽ có các asset:
+
+```text
+Tien-do-thi-cong-Cai-dat-<version>.exe
+Tien-do-thi-cong-Cai-dat-<version>.exe.blockmap
+latest.yml
 ```
 
 ## Icon
 
-Windows packaging uses:
+Build Windows dùng:
 
 ```text
 assets/icon.ico
 ```
 
-The current file is a generated placeholder. Replace it with the final product icon later, keeping the same path.
+File hiện tại là icon tạm sinh tự động. Khi có icon chính thức, thay đúng file này và giữ nguyên đường dẫn.
 
-## File Association
+## Mở File Dự Án
 
-The Windows installer registers:
+Installer Windows đăng ký đuôi:
 
 ```text
 .tdtc
 ```
 
-as `Construction Progress Project`, so double-clicking a project file opens the app and requests the running window to load that file.
+là `Dự án tiến độ thi công`, nên nhấp đúp file dự án sẽ mở app và yêu cầu cửa sổ đang chạy nạp file đó.
 
-## Code Signing
+## Ký Mã
 
-The installer is not code-signed in this repository. Unsigned Windows installers can trigger Microsoft SmartScreen warnings. To avoid that for distribution, buy/use a Windows code-signing certificate and configure electron-builder signing credentials in the build environment.
+Installer hiện chưa được ký mã. Installer Windows chưa ký có thể hiện cảnh báo Microsoft SmartScreen. Khi phát hành chính thức, cần dùng chứng chỉ ký mã Windows và cấu hình thông tin ký cho electron-builder trong môi trường build.
 
-## Auto Update
+## Tự Động Cập Nhật
 
-The app includes a safe `electron-updater` adapter in `electron/update-service.js`, but no publish provider is configured yet. To enable production auto update later, add a real `build.publish` provider such as GitHub, S3, or a generic HTTPS endpoint, publish signed releases, and then wire the update UI to download/install after checks succeed.
+Bản đã đóng gói dùng `electron-updater` và GitHub Releases làm kênh cập nhật.
+Vì bản Windows hiện chưa ký mã, `verifyUpdateCodeSignature` đang tắt cho đến khi cấu hình ký mã.

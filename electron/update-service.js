@@ -6,6 +6,8 @@ const path = require("node:path");
 
 function createUpdateService() {
   let autoUpdater = null;
+  let lastCheckResult = null;
+  let updateDownloaded = false;
 
   try {
     ({ autoUpdater } = require("electron-updater"));
@@ -14,7 +16,7 @@ function createUpdateService() {
       async checkForUpdates() {
         return {
           status: "unavailable",
-          message: "electron-updater is not installed.",
+          message: "Chưa cài electron-updater.",
           detail: error.message
         };
       }
@@ -23,34 +25,52 @@ function createUpdateService() {
 
   autoUpdater.autoDownload = false;
 
+  autoUpdater.on("update-downloaded", () => {
+    updateDownloaded = true;
+  });
+
+  function isConfigured() {
+    const updateConfigPath = path.join(process.resourcesPath || "", "app-update.yml");
+    return fs.existsSync(updateConfigPath);
+  }
+
+  function inactiveStatus() {
+    if (!app.isPackaged) {
+      return {
+        status: "disabled",
+        message: "Tự động cập nhật chỉ hoạt động trong bản đã đóng gói."
+      };
+    }
+
+    if (!isConfigured()) {
+      return {
+        status: "not-configured",
+        message: "Chưa cấu hình nguồn phát hành cho tự động cập nhật."
+      };
+    }
+
+    return null;
+  }
+
   return {
     async checkForUpdates() {
-      if (!app.isPackaged) {
-        return {
-          status: "disabled",
-          message: "Auto update is available only in packaged builds."
-        };
-      }
-
-      const updateConfigPath = path.join(process.resourcesPath || "", "app-update.yml");
-      if (!fs.existsSync(updateConfigPath)) {
-        return {
-          status: "not-configured",
-          message: "Auto update publish provider is not configured yet."
-        };
-      }
+      const inactive = inactiveStatus();
+      if (inactive) return inactive;
 
       try {
         const result = await autoUpdater.checkForUpdates();
+        lastCheckResult = result;
+        updateDownloaded = false;
+
         if (!result) {
           return {
             status: "not-configured",
-            message: "Auto update provider returned no result."
+            message: "Nguồn cập nhật không trả về kết quả."
           };
         }
 
         return {
-          status: result.updateInfo ? "ok" : "not-available",
+          status: result.isUpdateAvailable ? "available" : "not-available",
           updateInfo: result.updateInfo || null
         };
       } catch (error) {
@@ -59,6 +79,49 @@ function createUpdateService() {
           message: error.message || String(error)
         };
       }
+    },
+
+    async downloadUpdate() {
+      const inactive = inactiveStatus();
+      if (inactive) return inactive;
+
+      if (!lastCheckResult || !lastCheckResult.isUpdateAvailable) {
+        return {
+          status: "not-checked",
+          message: "Chưa có bản cập nhật đã kiểm tra để tải."
+        };
+      }
+
+      try {
+        const files = await autoUpdater.downloadUpdate();
+        updateDownloaded = true;
+        return {
+          status: "downloaded",
+          files
+        };
+      } catch (error) {
+        return {
+          status: "error",
+          message: error.message || String(error)
+        };
+      }
+    },
+
+    quitAndInstall() {
+      const inactive = inactiveStatus();
+      if (inactive) return inactive;
+
+      if (!updateDownloaded) {
+        return {
+          status: "not-downloaded",
+          message: "Chưa có bản cập nhật đã tải sẵn để cài đặt."
+        };
+      }
+
+      autoUpdater.quitAndInstall(false, true);
+      return {
+        status: "installing"
+      };
     }
   };
 }
