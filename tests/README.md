@@ -56,7 +56,7 @@ tests/
     09-pst-ordinal       ánh xạ STT ↔ chỉ số mảng khi bật dòng tổng dự án
     10-resources         cú pháp nhân lực, biểu đồ nhân lực
     11-timeline          phạm vi trục, Auto fit, đơn vị tuần/tháng
-    12-version           verKey, APPVER, thông báo bản mới
+    12-version           quy ước Ver YY.MM.NNN, nhãn phiên bản, thông báo bản mới
     13-storage           khóa localStorage, danh mục dự án
     14-migration         mergeDefaults nâng cấp hồ sơ cũ
     15-invariants        ràng buộc kiến trúc §13.1 (kiểm ở mức mã nguồn)

@@ -1471,7 +1471,7 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
 /* ============================================================
    TIẾN ĐỘ THI CÔNG — single-file Gantt scheduler
    ============================================================ */
-let APPVER = "Tiến độ thi công Ver 26.08.001"; // Nhãn dự phòng cho bản mở bằng trình duyệt.
+let APPVER = "Tiến độ thi công Ver 26.08.002"; // Nhãn dự phòng cho bản mở bằng trình duyệt.
 const DAY = 86400000;
 const $ = s => document.querySelector(s);
 const IS_DESKTOP = !!(window.desktop && window.desktop.isElectron);
@@ -6434,9 +6434,8 @@ function bindUI(){
       downloadDesktopUpdate();
       return;
     }
-    $("#updMsg").textContent=t("updRestart");
-    $("#updFoot1").style.display="none";
-    $("#updFoot2").style.display="";
+    // Không còn kênh nào khác — chỉ đóng hộp thoại.
+    $("#updOverlay").style.display="none";
   };
   $("#updOk").onclick=()=>$("#updOverlay").style.display="none";
   $("#btnTips").onclick=()=>$("#tipsOverlay").style.display="flex";
@@ -7134,49 +7133,10 @@ async function initDesktopIntegration() {
 }
 
 /* ---------- Kiểm tra cập nhật phiên bản ----------
-   UPDATE_URL: điền URL trả về JSON {"ver":"Construction Progress Ver.0726.09.001","url":"<link tải>","note":"..."}
-   Gợi ý: Google Apps Script Web App (doGet + ContentService, quyền "Anyone") hoặc GitHub raw.
-   Để trống = tắt kiểm tra. App offline vẫn chạy bình thường khi không có mạng. */
-const UPDATE_URL = "https://script.google.com/macros/s/AKfycbxjviUVnO7824uC2D1SO-qgsYZ1npUpe0IKqpiEcMKUzxtj3Ac_5G3op1iV6_enwvWe/exec"; // kênh kiểm tra bản cập nhật (GAS Web App)
+   CHỈ CÒN MỘT KÊNH: electron-updater + GitHub Releases (bản desktop).
+   Kênh Google Apps Script đã bị gỡ bỏ hẳn — không khôi phục. Bản mở bằng trình
+   duyệt không tự cập nhật nữa; muốn bản mới thì tải trình cài từ GitHub. */
 
-function verKey(v){
-  const s=String(v||"");
-  // Định dạng ĐANG DÙNG: "Ver YY.MM.NNN" → YY*1e7 + MM*1e5 + 99*1e3 + NNN.
-  // Chỗ 99*1e3 giữ nguyên vị trí của "ngày" ở định dạng cũ, để mọi bản mới
-  // luôn lớn hơn mọi bản cũ phát hành trong cùng tháng.
-  let m=s.match(/Ver[\s.]+(\d{2})\.(\d{2})\.(\d{3})(?!\d)/);
-  if(m) return (+m[1])*1e7 + (+m[2])*1e5 + 99*1e3 + (+m[3]);
-  // Định dạng CŨ "Ver.MMYY.DD.NNN" — giữ để so với các bản đã phát hành trước đây
-  m=s.match(/Ver\.(\d{2})(\d{2})\.(\d{2})\.(\d{3})/);
-  if(m) return (+m[2])*1e7 + (+m[1])*1e5 + (+m[3])*1e3 + (+m[4]);
-  return 0;
-}
-function applyUpdateInfo(info){
-  if(!info || !info.ver) return false;
-  if(verKey(info.ver) <= verKey(APPVER)) return false;
-  const verShort=(String(info.ver).match(/Ver\.[\d.]+/)||[info.ver])[0];
-  // nút nhỏ trên ribbon (phụ)
-  const b=$("#updBtn");
-  if(b){
-    b.style.display="inline-block";
-    b.textContent="⬆ "+verShort;
-    b.title=(info.note? info.note+" — " : "")+t("updGo");
-    b.onclick=()=>showUpdModal(verShort);
-  }
-  showUpdModal(verShort);
-  return true;
-}
-function showUpdModal(verShort) {
-  $("#updMsg").textContent = t("updHas") + " " + verShort;
-  window._desktopUpdateAvailable = false;
-  window._desktopUpdateDownloaded = false;
-  const go = $("#updGo"), later = $("#updLater");
-  if (go) { go.disabled = false; go.textContent = t("updGo"); }
-  if (later) later.disabled = false;
-  $("#updFoot1").style.display = "";
-  $("#updFoot2").style.display = "none";
-  $("#updOverlay").style.display = "flex";
-}
 function showDesktopUpdateModal(verShort) {
   window._updVer = verShort;
   const b = $("#updBtn");
@@ -7297,14 +7257,8 @@ function checkUpdate(manual) {
       .catch(() => { if (manual) toast("Không kiểm tra được cập nhật"); });
     return;
   }
-  if (!UPDATE_URL) { if (manual) toast("Chưa cấu hình UPDATE_URL trong file app"); return; }
-  fetch(UPDATE_URL, { cache: "no-store" })
-    .then(r => r.json())
-    .then(info => {
-      const has = applyUpdateInfo(info);
-      if (manual) toast(has ? "Có bản mới: " + info.ver : "Bạn đang dùng bản mới nhất (" + APPVER + ")");
-    })
-    .catch(() => { if (manual) toast("Không kiểm tra được (mạng/URL)"); });
+  // Bản mở bằng trình duyệt: không có kênh cập nhật nào cả.
+  if (manual) toast("Tự cập nhật chỉ có ở bản desktop — tải bản mới từ GitHub Releases");
 }
 
 /* ---------- Ngôn ngữ giao diện (ribbon/menu/dialog — không áp dụng nội dung task) ---------- */
@@ -7474,7 +7428,7 @@ window.APP = {
   focusCell, selectRect, paintCellSel, targetCells, formatCells, toggleFmt, getFmt, getCellText,
   clearCellContents, insertTaskAt, doUndo, doRedo, commitHistory, totalCols, colKeyAt,
   getColW, projectLabel, printInfoLine,
-  APPVER, verKey, fmtVer, appVersionLabel, applyUpdateInfo, checkUpdate,
+  APPVER, fmtVer, appVersionLabel, checkUpdate, showDesktopUpdateModal, handleDesktopUpdateEvent,
   hasPST, pstOrdinal, idxOfId, setProjectSummary, children, insertTasksAt, setScheduleMode, moveBlockTo, moveColumn, toggleCollapse, computeHidden, colIdxOf, autoRowH, barTextFS,
   colLabelOf, autoFitCol, autoFitRows, textPx, paintColSel, fmtStyleCss,
   switchProject, newProject, duplicateProject, deleteProject, loadIndex, saveIndex, prjKey, updateFileLabel, openExternalData,

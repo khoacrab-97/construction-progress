@@ -1,17 +1,18 @@
-/* Số phiên bản và kênh cập nhật (CLAUDE.md §13.1 #1, §13.2).
+/* Số phiên bản và cách hiển thị.
 
-   Quy ước hiển thị: Ver <2 số cuối năm>.<tháng>.<lần cập nhật trong tháng>
+   Quy ước: Ver <2 số cuối năm>.<tháng>.<lần cập nhật trong tháng>
    ví dụ Ver 26.08.001 — sang tháng mới thì lần cập nhật reset về 001.
-   Nguồn duy nhất là số phiên bản gói cài (semver 26.8.1) lấy từ tag. */
+   Nguồn duy nhất là semver của gói cài (26.8.1), lấy từ tag phát hành.
+   So sánh phiên bản do electron-updater lo (semver) — app không tự so nữa. */
 const fs = require("fs");
 const path = require("path");
 const { loadApp, closeApp } = require("../helpers/env");
 
-exports.name = "version — định dạng Ver YY.MM.NNN, verKey";
+exports.name = "version — định dạng Ver YY.MM.NNN, hiển thị";
 exports.run = function (t) {
   const APP = loadApp({ silent: true });
   try {
-    const K = APP.verKey, F = APP.fmtVer;
+    const F = APP.fmtVer;
 
     t.case("semver của gói cài → nhãn hiển thị");
     t.eq(F("26.8.1"), "Ver 26.08.001", "tháng và lần cập nhật được đệm số 0");
@@ -20,15 +21,16 @@ exports.run = function (t) {
     t.eq(F("26.9.1"), "Ver 26.09.001", "sang tháng mới, lần cập nhật về 001");
     t.eq(F("27.1.1"), "Ver 27.01.001", "sang năm mới");
     t.eq(F("2026.8.1"), "Ver 26.08.001", "năm 4 chữ số vẫn rút về 2 số cuối");
+    t.eq(F("1.0.6"), "Ver 01.00.006", "bản cũ theo hệ 1.0.x vẫn dựng được nhãn");
 
     t.case("chuỗi rác không tạo ra nhãn bịa");
     t.eq(F(""), "");
     t.eq(F(null), "");
+    t.eq(F(undefined), "");
     t.eq(F("linh tinh"), "");
 
-    t.case("APPVER đúng khuôn đang dùng");
+    t.case("APPVER dự phòng đúng khuôn đang dùng");
     t.ok(/Ver \d{2}\.\d{2}\.\d{3}/.test(APP.APPVER), "APPVER = " + APP.APPVER);
-    t.ok(K(APP.APPVER) > 0, "APPVER phải quy đổi được thành số so sánh");
     t.eq(APP.appVersionLabel(), APP.APPVER.replace("Tiến độ thi công ", ""),
       "nhãn hiển thị là phần Ver… của APPVER");
 
@@ -39,39 +41,19 @@ exports.run = function (t) {
     const mm = +pkg.version.split(".")[1];
     t.ok(mm >= 1 && mm <= 12, "phần tháng phải là 1..12, đang là " + mm);
 
-    t.case("chuỗi không đúng khuôn quy về 0");
-    t.eq(K(""), 0);
-    t.eq(K(null), 0);
-    t.eq(K("linh tinh"), 0);
-
-    t.case("lần cập nhật trong tháng tăng thì phiên bản lớn hơn");
-    t.ok(K("Ver 26.08.002") > K("Ver 26.08.001"));
-    t.ok(K("Ver 26.08.010") > K("Ver 26.08.009"));
-
-    t.case("sang tháng mới lớn hơn, dù lần cập nhật reset về 001");
-    t.ok(K("Ver 26.09.001") > K("Ver 26.08.999"), "đây chính là chỗ dễ sai nhất của quy ước reset");
-
-    t.case("sang năm mới thắng tất cả");
-    t.ok(K("Ver 27.01.001") > K("Ver 26.12.999"));
-
-    t.case("bản theo khuôn mới luôn mới hơn bản đã phát hành theo khuôn cũ");
-    t.ok(K("Ver 26.08.001") > K("Ver.0826.24.004"), "máy đang chạy bản cũ vẫn nhận được bản mới");
-    t.ok(K("Ver 26.08.001") > K("Tiến độ thi công Ver.0726.13.026"));
-
-    t.case("tiền tố không ảnh hưởng, hai chuỗi giống nhau thì bằng nhau");
-    t.eq(K("Tiến độ thi công Ver 26.08.001"), K("Ver 26.08.001"));
-
-    t.case("applyUpdateInfo bỏ qua dữ liệu rỗng hoặc hỏng");
-    t.eq(APP.applyUpdateInfo(null), false);
-    t.eq(APP.applyUpdateInfo({}), false);
-    t.eq(APP.applyUpdateInfo({ ver: "" }), false);
-
-    t.case("applyUpdateInfo bỏ qua bản cũ hơn hoặc bằng");
-    t.eq(APP.applyUpdateInfo({ ver: APP.APPVER }), false, "bằng phiên bản hiện tại");
-    t.eq(APP.applyUpdateInfo({ ver: "Tiến độ thi công Ver 01.01.001" }), false, "cũ hơn nhiều");
-
-    t.case("applyUpdateInfo báo có bản mới khi phiên bản lớn hơn");
-    t.eq(APP.applyUpdateInfo({ ver: "Tiến độ thi công Ver 99.12.999", note: "thử" }), true);
+    t.case("thứ tự phiên bản theo semver vẫn đúng ở chỗ dễ sai nhất");
+    // Quy ước reset khiến số NHỎ ĐI khi sang tháng — electron-updater so theo
+    // semver nên vẫn đúng, nhưng đây là chỗ phải canh mỗi khi đổi cách đánh số.
+    const semver = v => v.split(".").map(Number);
+    const gt = (a, b) => {
+      const A = semver(a), B = semver(b);
+      for (let i = 0; i < 3; i++) { if (A[i] !== B[i]) return A[i] > B[i]; }
+      return false;
+    };
+    t.ok(gt("26.8.2", "26.8.1"), "cùng tháng, lần sau lớn hơn");
+    t.ok(gt("26.9.1", "26.8.99"), "sang tháng: 26.9.1 phải MỚI HƠN 26.8.99");
+    t.ok(gt("27.1.1", "26.12.999"), "sang năm");
+    t.ok(gt("26.8.1", "1.0.6"), "hệ mới luôn mới hơn hệ 1.0.x cũ");
 
     t.case("nhãn phiên bản hiện ở góc phải hàng ribbon trên cùng");
     const doc = APP.__dom.window.document;
@@ -82,10 +64,19 @@ exports.run = function (t) {
     t.ok(!!row, "nằm trong hàng ribbon trên cùng");
     t.eq(row.lastElementChild.id, "appVer", "là phần tử ngoài cùng bên phải của hàng");
 
-    t.case("nút cập nhật hiện lên khi có bản mới");
+    t.case("sự kiện 'có bản mới' ghi nhận phiên bản và không chặn màn hình");
+    APP.handleDesktopUpdateEvent({ type: "available", version: "26.8.2" });
+    t.eq(APP.__dom.window._updVer, "26.8.2", "nhớ phiên bản đang tải");
+    t.eq(APP.__dom.window._desktopUpdateAvailable, true);
+    t.eq(doc.querySelector("#updOverlay").style.display, "none",
+      "luồng tự động KHÔNG bật hộp thoại");
+
+    t.case("hộp thoại thủ công hiện nút cập nhật trên ribbon");
+    APP.showDesktopUpdateModal("26.8.2");
     const btn = doc.querySelector("#updBtn");
     t.ok(btn, "nút #updBtn tồn tại trong DOM");
     t.eq(btn.style.display, "inline-block");
-    t.ok(btn.textContent.indexOf("Ver") >= 0, "nút hiện số phiên bản: " + btn.textContent);
+    t.ok(btn.textContent.indexOf("26.8.2") >= 0, "nút hiện số phiên bản: " + btn.textContent);
+    t.eq(doc.querySelector("#updOverlay").style.display, "flex", "hộp thoại mở khi gọi tay");
   } finally { closeApp(APP); }
 };

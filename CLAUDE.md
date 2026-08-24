@@ -1,6 +1,6 @@
 # Construction Progress — Tài liệu bàn giao dự án
 
-> \*\*Phiên bản tài liệu:\*\* ứng với `Tiến độ thi công Ver 26.08.001`
+> \*\*Phiên bản tài liệu:\*\* ứng với `Tiến độ thi công Ver 26.08.002`
 > \*\*Đọc file này trước khi sửa bất cứ thứ gì.\*\* Mục 13 là ràng buộc bắt buộc.
 
 \---
@@ -31,7 +31,7 @@ có chủ đích, không phải thiếu sót.
 |Vai trò|Cách dùng|
 |-|-|
 |Kỹ sư QS / cán bộ kỹ thuật|Người dùng chính, lập và in tiến độ trên máy cá nhân|
-|Người quản trị phần mềm (tác giả)|Phát hành bản mới qua GAS, giữ file `CapNhat-GAS-Code.gs`|
+|Người quản trị phần mềm (tác giả)|Phát hành bản mới bằng cách đẩy tag `vYY.M.N` lên GitHub|
 
 Lý do không có phân quyền:
 
@@ -126,8 +126,7 @@ sản phẩm. Lý do: phân phối chỉ cần copy một file; cập nhật ch�
 * **Vanilla JS.** Không React/Vue/jQuery. Không thư viện biểu đồ (D3, Chart.js).
 SVG dựng bằng `document.createElementNS` qua hàm `svgEl()` tự viết.
 * **Local-first.** Không có máy chủ ứng dụng. Điểm liên lạc mạng duy nhất là
-GitHub Releases để kiểm tra và tải bản cập nhật (kênh GAS chỉ còn cho bản mở
-bằng trình duyệt).
+GitHub Releases để kiểm tra và tải bản cập nhật.
 * **Vỏ Electron mỏng.** `electron/` chỉ lo cửa sổ, hộp thoại file, IPC và cập nhật
 — không chứa logic nghiệp vụ. Toàn bộ nghiệp vụ nằm trong `src/index.html`.
 
@@ -142,8 +141,8 @@ Bản desktop — kênh chính
   Cài: quitAndInstall(true, true) → NSIS chạy với /S, cài đè rồi tự mở lại app
   Sự kiện available/progress/downloaded đẩy về giao diện qua kênh updates:event
 
-Bản mở bằng trình duyệt — dự phòng, CHỈ báo tin, không cài được
-  index.html ──GET──▶ GAS /exec → JSON {ver, url, note}
+Bản mở bằng trình duyệt — KHÔNG có kênh cập nhật nào
+  Muốn bản mới thì tải trình cài từ GitHub Releases.
 ```
 
 Kiểm tra: 3 giây sau khi mở app, rồi lặp lại mỗi 4 giờ (`UPDATE_EVERY_MS`), và
@@ -375,7 +374,7 @@ Khi bật, **Size % và cuộn vô hạn không có tác dụng** (mâu thuẫn 
 |-|-|-|
 |1|Một file HTML, vanilla JS, không framework|Phân phối và cập nhật chỉ cần thay một file; không cần môi trường chạy|
 |2|Không tài khoản, không phân quyền|Mô hình một người – một máy, dữ liệu cục bộ|
-|3|Cập nhật qua **GitHub Releases + electron-updater**|Đã chuyển từ GAS + Drive; kênh GAS giữ làm dự phòng cho bản trình duyệt|
+|3|Cập nhật qua **GitHub Releases + electron-updater**, và CHỈ kênh này|Đã gỡ hẳn kênh Google Apps Script. Hai kênh song song nghĩa là hai hệ đánh số phải tự giữ cho khớp — nguồn sai lệch âm thầm|
 |4|Font mặc định **Times New Roman 12** toàn bảng|Chuẩn hồ sơ xây dựng Việt Nam|
 |5|Ngày **luôn dd/mm/yyyy**, tự vẽ lịch chọn ngày|Ô `<input type=date>` hiển thị theo ngôn ngữ Windows, máy cài tiếng Anh ra mm/dd/yyyy|
 |6|Ô hai trạng thái (chọn / nhập)|Theo đặc tả thao tác bảng tính; nếu luôn ở chế độ nhập thì không bôi chọn vùng được|
@@ -408,10 +407,10 @@ theo thứ tự (từ đầu/từ cuối), Show 1/2/3 tầng có khóa tab, Size
 **In ấn** — khổ giấy/hướng/lề, header rich text 3 ô, footer nhiều hộp chữ ký kéo
 thả, token tự điền, xem trước kiểu MS Project, chia trang theo chiều cao đo thật.
 
-**Hạ tầng** — tự cập nhật qua GAS, hộp thoại báo bản mới, nhắc lưu kiểu MS Project,
+**Hạ tầng** — tự tải/tự cài bản mới qua electron-updater, nhắc lưu kiểu MS Project,
 song ngữ, biểu đồ nhân lực.
 
-**Kiểm thử** — **21 bộ test, 719 assertion**, chạy trên jsdom, nằm trong `tests/`.
+**Kiểm thử** — **21 bộ test, 720 assertion**, chạy trên jsdom, nằm trong `tests/`.
 Chạy bằng `npm test`. Xem `tests/README.md` để biết cách viết thêm và quy trình
 chụp ảnh SVG.
 
@@ -453,7 +452,7 @@ hoạch và thực hiện. Phụ thuộc việc 1.
 
 |#|Điều cấm|Hậu quả nếu vi phạm|
 |-|-|-|
-|1|**Không để trống `const UPDATE\_URL`**|Đứt kênh thông báo cập nhật của **bản mở bằng trình duyệt**. Đã từng xảy ra. (Bản desktop dùng kênh riêng — xem #10)|
+|1|**Không khôi phục kênh Google Apps Script** (`UPDATE\_URL`, `verKey()`, `applyUpdateInfo()`) dưới bất kỳ hình thức nào|Người dùng đã quyết định bỏ hẳn kênh này. Hai kênh song song = hai hệ đánh số phải tự giữ cho khớp, sinh sai lệch âm thầm|
 |2|**Không tách file HTML thành nhiều file**|Vỡ cơ chế phân phối và cập nhật|
 |3|**Không thêm framework / thư viện ngoài** (React, jQuery, D3, Chart.js…)|Trái kiến trúc; app phải chạy offline không cần build|
 |4|**Không đổi/xóa khóa `localStorage`** (`tiendo\_idx\_v1`, `tiendo\_cur\_v1`, `tiendo\_prj\_\*`, `tiendo\_gantt\_v1`)|Người dùng mất toàn bộ dự án đã lưu|
@@ -475,7 +474,6 @@ hoạch và thực hiện. Phụ thuộc việc 1.
 `app.getVersion()` rồi `fmtVer()` dựng nhãn hiển thị.
 4. `APPVER` trong `src/index.html` chỉ là **nhãn dự phòng cho bản mở bằng trình
 duyệt** (không có `app.getVersion()`). Cập nhật khi phát hành bản trình duyệt.
-5. Nếu cập nhật bản trình duyệt qua GAS: `VER` trong GAS **phải khớp** `APPVER`.
 
 ### 13.2b Quy ước đánh số phiên bản
 
@@ -489,8 +487,8 @@ v27.1.1     →    Ver 27.01.001
 
 Ba phần: **2 số cuối của năm . tháng . lần cập nhật trong tháng**. Sang tháng mới
 là quay lại 001. Vì `electron-updater` so sánh theo semver nên thứ tự vẫn đúng
-(26.9.1 > 26.8.99). `verKey()` cũng phải giữ đúng thứ tự này — có test canh riêng
-trường hợp "sang tháng, số nhỏ hơn nhưng phải mới hơn".
+(26.9.1 > 26.8.99). Có test canh riêng trường hợp "sang tháng, số nhỏ hơn nhưng
+phải mới hơn" — đổi cách đánh số thì phải chạy lại bộ test đó.
 
 Nhãn hiển thị ở **góc phải hàng ribbon trên cùng** (ô `#appVer`) và trong hộp
 Hướng dẫn.
@@ -540,7 +538,6 @@ thì nói rõ chưa kiểm chứng được.
 |`tools/make-icon.js`|Vẽ icon Gantt nhiều kích thước (16→256) ra `assets/icon.ico`|
 |`.github/workflows/release.yml`|Build + phát hành khi đẩy tag `vX.Y.Z`|
 |`.github/workflows/ci.yml`|Chạy `npm test` khi push lên `main` / mở PR|
-|`CapNhat-GAS-Code.gs`|Mã Google Apps Script — kênh dự phòng cho bản trình duyệt, **chỉ tác giả giữ**|
 |`tests/`|Bộ kiểm thử jsdom — `npm test`; xem `tests/README.md`|
 |`tests/snap.js`|Chụp ảnh SVG Gantt để đối chiếu (§13.3)|
 |`tests/syntax-check.js`|Kiểm tra cú pháp phần `<script>` (§13.2 #2)|

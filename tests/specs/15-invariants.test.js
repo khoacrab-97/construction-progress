@@ -24,11 +24,16 @@ exports.run = function (t) {
   const externals = (src.match(/(?:src|href)="https?:\/\/[^"]*"/g) || []);
   t.eq(externals, [], "không có src/href http: " + externals.join(", "));
 
-  t.case("§13.1 #1 — UPDATE_URL không được để trống");
-  const m = src.match(/const UPDATE_URL = "([^"]*)"/);
-  t.ok(!!m, "vẫn khai báo const UPDATE_URL");
-  t.ok(!!(m && m[1].trim()), "UPDATE_URL có giá trị");
-  t.ok(!!(m && /^https?:\/\//.test(m[1])), "UPDATE_URL là một URL hợp lệ");
+  t.case("§13.1 #1 — kênh Google Apps Script đã gỡ bỏ hẳn, KHÔNG khôi phục");
+  const gasFiles = ["src/index.html", "electron/main.js", "electron/preload.js", "electron/update-service.js"];
+  gasFiles.forEach(f => {
+    const txt = fs.readFileSync(path.join(ROOT, f), "utf8");
+    t.ok(txt.indexOf("script.google.com") < 0, f + ": không còn địa chỉ GAS");
+    t.ok(txt.indexOf("UPDATE_URL") < 0, f + ": không còn hằng số UPDATE_URL");
+  });
+  t.ok(src.indexOf("function verKey") < 0, "không còn verKey — so sánh phiên bản do electron-updater lo");
+  t.ok(src.indexOf("function applyUpdateInfo") < 0, "không còn applyUpdateInfo của kênh cũ");
+  t.ok(src.indexOf("function showUpdModal") < 0, "không còn hộp thoại riêng của kênh cũ");
 
   t.case("§13.1 #7 — pstOrdinal() và idxOfId() vẫn còn");
   t.ok(src.indexOf("function pstOrdinal(") >= 0);
