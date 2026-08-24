@@ -85,6 +85,18 @@ exports.run = function (t) {
 };
 ```
 
+`run(t)` được phép là **async** — cần khi test phải điều khiển hộp thoại qua
+nhiều bước (luồng tắt app, phục hồi). Xem `22-recovery.test.js`:
+
+```js
+const tick = () => new Promise(r => setTimeout(r, 0));
+
+const p = APP.closeFlow();      // chưa await — hộp thoại đang chờ trả lời
+await tick();
+win.document.querySelector("#svNo").onclick();
+t.eq(await p, true);
+```
+
 Quy ước:
 
 * `makeState(APP, {...})` dựng state tối thiểu — mặc định dự án bắt đầu **thứ Hai

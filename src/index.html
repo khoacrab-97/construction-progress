@@ -908,6 +908,51 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
   </div>
 </div>
 
+<!-- Hộp hỏi Có/Không -->
+<div id="ask2Overlay" style="position:fixed;inset:0;background:rgba(20,30,40,.45);display:none;align-items:center;justify-content:center;z-index:72">
+  <div class="modal" style="width:440px">
+    <h3>Construction Progress</h3>
+    <div class="body" style="display:flex;gap:12px;align-items:flex-start">
+      <span style="font-size:26px;line-height:1">🗂</span>
+      <div id="ask2Msg" style="font-size:13px;line-height:1.6;padding-top:3px"></div>
+    </div>
+    <div class="foot">
+      <button class="primary" id="ask2Yes" data-i18n="svYes">Có</button>
+      <button id="ask2No" data-i18n="svNo">Không</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hộp đặt tên dự án khi cất vào Dự án của tôi -->
+<div id="nameOverlay" style="position:fixed;inset:0;background:rgba(20,30,40,.45);display:none;align-items:center;justify-content:center;z-index:73">
+  <div class="modal" style="width:440px">
+    <h3 data-i18n="nmT">Đặt tên dự án</h3>
+    <div class="body">
+      <div class="hint" data-i18n="nmMsg">Dự án sẽ được cất trong 🗂 Dự án của tôi với tên này.</div>
+      <input type="text" id="nameInp" style="width:100%;margin-top:8px;box-sizing:border-box">
+    </div>
+    <div class="foot">
+      <button class="primary" id="nameOk">OK</button>
+      <button id="nameCancel" data-i18n="cancel">Hủy</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hộp phục hồi sau khi app đóng bất thường -->
+<div id="recOverlay" style="position:fixed;inset:0;background:rgba(20,30,40,.45);display:none;align-items:center;justify-content:center;z-index:74">
+  <div class="modal" style="width:620px">
+    <h3 data-i18n="recT">🛟 Phục hồi dự án chưa lưu</h3>
+    <div class="body">
+      <div class="hint" data-i18n="recHint">Lần trước app đóng bất thường. Những file dưới đây còn thay đổi chưa kịp ghi ra đĩa.</div>
+      <div id="recList" style="display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow:auto;margin-top:8px"></div>
+    </div>
+    <div class="foot">
+      <button id="recDropSel" data-i18n="recDropSel">Bỏ mục đã chọn</button>
+      <button id="recLater" data-i18n="recLater">Để sau</button>
+    </div>
+  </div>
+</div>
+
 <!-- Tìm & Thay thế -->
 <div id="fndOverlay" style="position:fixed;inset:0;background:rgba(20,30,40,.25);display:none;align-items:flex-start;justify-content:center;z-index:64">
   <div class="modal" style="width:430px;margin-top:80px">
@@ -1629,9 +1674,18 @@ function save(){
     const e=ix.find(x=>x.id===currentId);
     if(e){ e.name=state.name; e.updated=Date.now(); }
     else ix.push({id:currentId, name:state.name, updated:Date.now()});
+    /* Cờ "còn thay đổi chưa ghi ra .tdtc", nằm trong danh mục nên SỐNG SÓT
+       qua mất điện / treo máy. Cờ còn sót lúc khởi động = lần trước app chết
+       bất thường → hỏi phục hồi. Tắt tử tế thì một trong hai nhánh của
+       closeFlow() đã xóa cờ rồi, nên không cần cơ chế dò riêng. */
+    if(!window._saveQuiet && window._srcUrl){
+      const e2=ix.find(x=>x.id===currentId);
+      if(e2){ e2.srcUrl=window._srcUrl; e2.unsaved=1; }
+    }
     saveIndex(ix);
     LS.set(CURKEY, currentId);
   }catch(e){}
+  if(!window._saveQuiet) window._docDirty=true;
   if(fileHandle && !fileDirty){ fileDirty=true; updateFileLabel(); }
   if(window._srcUrl) window._extDirty=true; // mở từ .tdtc double-click: có sửa đổi chưa ghi ra file
 }
@@ -1666,6 +1720,7 @@ function startFreshSession(){
   state=defaultState();
   mergeDefaults();
   fileHandle=null; fileDirty=false;
+  window._docDirty=false;
 }
 function stateHasContent(){
   if(state.tasks && state.tasks.some(t=>String((t&&t.name)||"").trim())) return true;
@@ -1679,6 +1734,7 @@ function resetSession(){
   fileHandle=null; fileDirty=false;
   selRow=-1; rowSel.clear(); cellSel.clear(); colSel.clear();
   undoStack.length=0; redoStack.length=0; currentSnap=null;
+  window._docDirty=false;
   window._autoScrollPending=true; window._tlExtraDays=0; window._tlExtraDaysPast=0;
 }
 function switchProject(id){
@@ -1731,8 +1787,71 @@ function deleteProject(id){
     renderAll(); updateFileLabel();
   }
 }
+/* "Còn thay đổi chưa ghi ra FILE .tdtc". Hẹp có chủ đích: dùng cho dấu * trên
+   thanh tiêu đề, cho nút Dự án mới / Mở file, và cho bước cài bản cập nhật —
+   những chỗ mà dữ liệu vẫn an toàn trong 🗂 Dự án của tôi nên không được hỏi
+   thừa (tự cập nhật phải chạy không cần người dùng bấm gì). */
 function isDiskDirty() {
   return !!((fileHandle && fileDirty) || (window._srcUrl && window._extDirty));
+}
+/* Rộng hơn: tính cả dự án CHƯA từng ghi ra .tdtc. Chỉ dùng cho closeFlow() —
+   tắt app là lần cuối được hỏi, nên hỏi cả trường hợp này (xem CLAUDE.md 3.6). */
+function hasUnsavedWork() {
+  if (isDiskDirty()) return true;
+  return !fileHandle && !window._srcUrl && !!window._docDirty && stateHasContent();
+}
+function baseNameOf(p){
+  const s=String(p||"");
+  const i=Math.max(s.lastIndexOf("/"), s.lastIndexOf(String.fromCharCode(92)));
+  return i>=0 ? s.slice(i+1) : s;
+}
+function markUnsaved(){
+  try{
+    const ix=loadIndex(), e=ix.find(x=>x.id===currentId);
+    if(e && window._srcUrl){ e.srcUrl=window._srcUrl; e.unsaved=1; saveIndex(ix); }
+  }catch(err){}
+}
+function clearUnsavedFlag(id){
+  try{
+    const ix=loadIndex(), e=ix.find(x=>x.id===id);
+    if(e && e.unsaved){ delete e.unsaved; saveIndex(ix); }
+  }catch(err){}
+}
+function purgeProject(id){
+  try{
+    LS.del(prjKey(id));
+    saveIndex(loadIndex().filter(x=>x.id!==id));
+    if(LS.get(CURKEY)===id) LS.del(CURKEY);
+  }catch(err){}
+}
+function pendingRecovery(){
+  return loadIndex().filter(e => e && e.unsaved && e.srcUrl);
+}
+/* Hộp Có/Không dùng chung */
+function askYesNo(msg){
+  const ov=$("#ask2Overlay");
+  if(!ov) return Promise.resolve(false);
+  $("#ask2Msg").textContent=msg;
+  ov.style.display="flex";
+  return new Promise(res=>{
+    $("#ask2Yes").onclick=()=>{ ov.style.display="none"; res(true); };
+    $("#ask2No").onclick=()=>{ ov.style.display="none"; res(false); };
+  });
+}
+/* Hộp đặt tên. Trả về null nếu người dùng bấm Hủy. */
+function askName(def){
+  const ov=$("#nameOverlay"), ip=$("#nameInp");
+  if(!ov||!ip) return Promise.resolve(def);
+  ip.value=def||"";
+  ov.style.display="flex";
+  setTimeout(()=>{ try{ ip.focus(); ip.select(); }catch(err){} }, 30);
+  return new Promise(res=>{
+    const done=v=>{ ov.style.display="none"; ip.onkeydown=null; res(v); };
+    const ok=()=>done(ip.value.trim()||def||"Dự án mới");
+    $("#nameOk").onclick=ok;
+    $("#nameCancel").onclick=()=>done(null);
+    ip.onkeydown=ev=>{ if(ev.key==="Enter") ok(); else if(ev.key==="Escape") done(null); };
+  });
 }
 function currentDisplayName() {
   return (fileHandle && fileHandle.name) || window._srcName || (state && state.name) || "Dự án mới";
@@ -4758,7 +4877,10 @@ function renderAll(){
   save();
   commitHistory();
 }
-function toast(m){ const el=$("#msg"); el.textContent=m; el.classList.add("show"); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("show"),2600); }
+/* Gọi được từ callback bất đồng bộ (clipboard, đọc/ghi file, sự kiện cập
+   nhật) — những chỗ có thể kết thúc sau khi cửa sổ đã đóng, nên phải chịu được
+   trường hợp không còn DOM. */
+function toast(m){ if(typeof document==="undefined"||!document) return; const el=$("#msg"); if(!el) return; el.textContent=m; el.classList.add("show"); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("show"),2600); }
 
 /* ============================================================
    Sự kiện UI
@@ -5113,7 +5235,7 @@ function bindUI(){
         fileHandle = { name: res.fileName || fileSlug(), desktop: true };
         window._srcUrl = res.filePath || window._srcUrl || fileHandle.name;
         window._srcName = fileHandle.name;
-        fileDirty = false; window._extDirty = false; updateFileLabel();
+        fileDirty = false; window._extDirty = false; window._docDirty = false; clearUnsavedFlag(currentId); updateFileLabel();
         toast("💾 Đã lưu " + fileHandle.name);
         return true;
       }
@@ -5124,7 +5246,7 @@ function bindUI(){
         const w2 = await fileHandle.createWritable();
         await w2.write(JSON.stringify(state, null, 2));
         await w2.close();
-        fileDirty = false; window._extDirty = false; updateFileLabel();
+        fileDirty = false; window._extDirty = false; window._docDirty = false; clearUnsavedFlag(currentId); updateFileLabel();
         toast("💾 Đã lưu " + fileHandle.name);
         return true;
       } else return downloadFallback();
@@ -5141,7 +5263,7 @@ function bindUI(){
         if (res && res.canceled) return false;
         if (!res || res.error) { toast("File không hợp lệ" + (res && res.error ? ": " + res.error : "")); return false; }
         if (!res.data || !res.data.tasks || !res.data.start) throw 0;
-        openExternalData(res.filePath || res.fileName, res.data, { name: res.fileName || "project.tdtc", desktop: true });
+        await openExternalDataAsk(res.filePath || res.fileName, res.data, { name: res.fileName || "project.tdtc", desktop: true });
         return true;
       }
       if (window.showOpenFilePicker) {
@@ -5163,26 +5285,31 @@ function bindUI(){
   window._fileOps = { fileSave, fileOpen };
 
   // Xác nhận lưu (kiểu MS Project) trước hành động làm mất thay đổi chưa lưu
-  function guardUnsavedAsync() {
-    const dirty = isDiskDirty();
-    if (!dirty) return Promise.resolve(true);
-    const fname = fileHandle ? fileHandle.name : (window._srcName || t("svThis"));
+  /* Trả về: "clean" không có gì để lưu · "saved" đã ghi ra file ·
+     "no" chọn Không lưu · "cancel" chọn Hủy (hoặc hủy hộp thoại lưu) */
+  function guardUnsavedChoice(wide) {
+    if (!(wide ? hasUnsavedWork() : isDiskDirty())) return Promise.resolve("clean");
+    const fname = fileHandle ? fileHandle.name : (window._srcName || (state && state.name) || t("svThis"));
     $("#svMsg").textContent = t("svMsg").replace("{f}", fname);
     $("#svOverlay").style.display = "flex";
     return new Promise(resolve => {
       $("#svYes").onclick = async () => {
         $("#svOverlay").style.display = "none";
         const ok = await fileSave(false);
-        resolve(!!ok);
+        resolve(ok ? "saved" : "cancel");
       };
-      $("#svNo").onclick = () => { $("#svOverlay").style.display = "none"; resolve(true); };
-      $("#svCancel").onclick = () => { $("#svOverlay").style.display = "none"; resolve(false); };
+      $("#svNo").onclick = () => { $("#svOverlay").style.display = "none"; resolve("no"); };
+      $("#svCancel").onclick = () => { $("#svOverlay").style.display = "none"; resolve("cancel"); };
     });
+  }
+  function guardUnsavedAsync() {
+    return guardUnsavedChoice().then(r => r !== "cancel");
   }
   function guardUnsaved(next) {
     guardUnsavedAsync().then(ok => { if (ok) next(); });
   }
   window.guardUnsaved = guardUnsaved;
+  window.guardUnsavedChoice = guardUnsavedChoice;
   window.guardUnsavedAsync = guardUnsavedAsync;
   $("#btnFileOpen").onclick = () => guardUnsaved(fileOpen);
   $("#btnFileSave").onclick = () => fileSave(false);
@@ -5225,7 +5352,11 @@ function bindUI(){
       box.appendChild(row);
     });
   }
-  $("#btnPrjMgr").onclick=()=>{ save(); renderPrjList(); PJ.style.display="flex"; };
+  $("#btnPrjMgr").onclick=()=>{
+    // Chỉ cất tạm, không tính là một lần sửa
+    window._saveQuiet=true; try{ save(); } finally { window._saveQuiet=false; }
+    renderPrjList(); PJ.style.display="flex";
+  };
   $("#prjClose").onclick=()=>PJ.style.display="none";
   $("#prjNew").onclick=()=>{ newProject(); PJ.style.display="none"; toast("Đã tạo dự án mới"); };
   $("#prjOpenFile").onclick=()=>{ PJ.style.display="none"; fileOpen(); };
@@ -7069,15 +7200,102 @@ function openExternalData(url, obj, fileInfo) {
   fileHandle = fileInfo ? { name: fileInfo.name || "project.tdtc", desktop: !!fileInfo.desktop } : null;
   fileDirty = false;
   renderAll();
+  /* renderAll() có nhánh gọi save() (tự đo chiều cao dòng...). Vừa mở file thì
+     đó không phải người dùng sửa — đặt lại cờ SAU khi vẽ, nếu không file mới mở
+     đã mang dấu * và bị nhắc phục hồi ở lần sau. */
+  fileDirty = false; window._extDirty = false; window._docDirty = false;
   LS.set(prjKey(currentId), JSON.stringify(state));
   const ix2 = loadIndex();
   let e2 = ix2.find(x => x.id === currentId);
   if (e2) { e2.name = state.name; e2.updated = Date.now(); e2.srcUrl = url; }
-  else ix2.push({ id: currentId, name: state.name, updated: Date.now(), srcUrl: url });
+  else { e2 = { id: currentId, name: state.name, updated: Date.now(), srcUrl: url }; ix2.push(e2); }
+  delete e2.unsaved;   // nội dung trong máy vừa khớp với file
   saveIndex(ix2); LS.set(CURKEY, currentId);
   updateFileLabel();
   toast("📂 Đã mở: " + ((fileInfo && fileInfo.name) || state.name || "dự án"));
   return true;
+}
+/* Mở file .tdtc. Nếu bản trong 🗂 Dự án của tôi mới hơn file (lần trước app
+   chết khi chưa kịp lưu) thì hỏi trước — không âm thầm đè bằng nội dung file. */
+async function openExternalDataAsk(url, obj, fileInfo) {
+  const ex = loadIndex().find(e => e && e.unsaved && e.srcUrl === url);
+  if (ex) {
+    const nm = (fileInfo && fileInfo.name) || baseNameOf(url);
+    if (await askYesNo(t("recOne").replace("{f}", nm))) {
+      let st = null;
+      try { st = JSON.parse(LS.get(prjKey(ex.id))); } catch (err) { }
+      if (st) {
+        const r = openExternalData(url, st, fileInfo);
+        if (r) { window._extDirty = true; markUnsaved(); updateFileLabel(); }
+        return r;
+      }
+    }
+    clearUnsavedFlag(ex.id);
+  }
+  return openExternalData(url, obj, fileInfo);
+}
+/* Mở lại một mục dở dang từ hộp phục hồi */
+async function recoverOne(id) {
+  const e = loadIndex().find(x => x.id === id);
+  if (!e) return;
+  const ov = $("#recOverlay"); if (ov) ov.style.display = "none";
+  let st = null;
+  try { st = JSON.parse(LS.get(prjKey(id))); } catch (err) { }
+  if (!st) { toast("Không đọc được bản dở dang"); clearUnsavedFlag(id); return; }
+  const nmf = baseNameOf(e.srcUrl) || "project.tdtc";
+  let desktop = false;
+  if (window.desktop && window.desktop.isElectron) {
+    /* Đọc lại file gốc để (1) chắc file còn ở đó, (2) báo đường dẫn hiện hành
+       cho tiến trình chính — nhờ vậy 💾 Lưu ghi ĐÈ đúng file, không hỏi lại.
+       Nội dung đọc lên bị bỏ đi, ta dùng bản dở dang trong danh mục. */
+    try {
+      const res = await window.desktop.loadProjectFile(e.srcUrl);
+      desktop = !!(res && !res.error && !res.canceled);
+    } catch (err) { }
+    if (!desktop) toast("Không thấy " + nmf + " ở chỗ cũ — hãy dùng 💾 Lưu thành để chọn nơi lưu");
+  }
+  openExternalData(e.srcUrl, st, { name: nmf, desktop: desktop });
+  window._extDirty = true; markUnsaved(); updateFileLabel();
+  toast("🛟 Đã mở lại bản chưa lưu: " + nmf);
+}
+/* Danh sách phục hồi. Trả về số mục còn lại. */
+function renderRecList(){
+  const box=$("#recList");
+  if(!box) return 0;
+  box.innerHTML="";
+  const list=pendingRecovery().filter(e=> e.srcUrl!==window._srcUrl);
+  list.forEach(e=>{
+    const row=document.createElement("div");
+    row.style.cssText="display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:6px 8px";
+    const cb=document.createElement("input"); cb.type="checkbox"; cb.className="recCb"; cb.dataset.id=e.id;
+    const wrap=document.createElement("div"); wrap.style.cssText="flex:1;min-width:0";
+    const b=document.createElement("div");
+    b.style.cssText="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+    b.textContent=baseNameOf(e.srcUrl)||e.name; b.title=e.srcUrl||"";
+    const sub=document.createElement("div"); sub.className="hint";
+    sub.textContent=(e.name||"")+" · "+new Date(e.updated||Date.now()).toLocaleString("vi-VN");
+    wrap.appendChild(b); wrap.appendChild(sub);
+    const bO=document.createElement("button"); bO.className="primary"; bO.textContent=t("recOpen");
+    bO.onclick=()=>recoverOne(e.id);
+    const bX=document.createElement("button"); bX.textContent=t("recDrop");
+    bX.onclick=()=>{ clearUnsavedFlag(e.id); if(!renderRecList()) $("#recOverlay").style.display="none"; };
+    row.appendChild(cb); row.appendChild(wrap); row.appendChild(bO); row.appendChild(bX);
+    box.appendChild(row);
+  });
+  return list.length;
+}
+function maybeShowRecovery(){
+  if(!renderRecList()) return false;
+  $("#recOverlay").style.display="flex";
+  return true;
+}
+function bindRecovery(){
+  const d=$("#recDropSel"), l=$("#recLater");
+  if(d) d.onclick=()=>{
+    document.querySelectorAll("#recList .recCb").forEach(cb=>{ if(cb.checked) clearUnsavedFlag(cb.dataset.id); });
+    if(!renderRecList()) $("#recOverlay").style.display="none";
+  };
+  if(l) l.onclick=()=>{ $("#recOverlay").style.display="none"; };
 }
 function bootOpenFromHash(){
   const h=location.hash||"";
@@ -7085,7 +7303,7 @@ function bootOpenFromHash(){
   const url=h.slice(6);
   try{ history.replaceState(null,"",location.pathname); }catch(e){}
   fetch(url).then(r=>r.text()).then(t=>{
-    openExternalData(url, JSON.parse(t));
+    openExternalDataAsk(url, JSON.parse(t));
   }).catch(()=>{
     toast("Không đọc được file — hãy dùng 📂 Mở file… trong tab Thông tin dự án");
   });
@@ -7098,15 +7316,36 @@ async function openDesktopFileRequest(fileInfo) {
   const res = await window.desktop.loadProjectFile(fileInfo.filePath);
   if (res && res.canceled) return false;
   if (!res || res.error) { toast("Không mở được file" + (res && res.error ? ": " + res.error : "")); return false; }
-  return openExternalData(res.filePath || fileInfo.filePath, res.data, { name: res.fileName || fileInfo.fileName || "project.tdtc", desktop: true });
+  return openExternalDataAsk(res.filePath || fileInfo.filePath, res.data, { name: res.fileName || fileInfo.fileName || "project.tdtc", desktop: true });
 }
 
 async function confirmDesktopClose() {
   if (!(window.desktop && window.desktop.isElectron)) return;
-  const ok = window.guardUnsavedAsync ? await window.guardUnsavedAsync() : true;
+  const ok = await closeFlow();
   if (!ok) return;
   window._allowClose = true;
   await window.desktop.closeAfterConfirm();
+}
+/* Luồng tắt app. Trả về true nếu được phép đóng.
+   · Có   → ghi ra .tdtc rồi đóng
+   · Hủy  → ở lại
+   · Không, dự án gắn với file → đóng luôn, xóa cờ để lần sau không hỏi phục hồi
+   · Không, dự án chưa có file → hỏi thêm: giữ trong 🗂 Dự án của tôi?
+              giữ  → đặt tên rồi đóng
+              không → xóa hẳn khỏi danh mục rồi đóng */
+async function closeFlow() {
+  const choice = window.guardUnsavedChoice ? await window.guardUnsavedChoice(true) : "clean";
+  if (choice === "cancel") return false;
+  if (choice !== "no") return true;
+  if (fileHandle || window._srcUrl) { clearUnsavedFlag(currentId); return true; }
+  if (!stateHasContent()) return true;
+  if (!(await askYesNo(t("keepMsg")))) { purgeProject(currentId); return true; }
+  const nm = await askName((state && state.name) || "Dự án mới");
+  if (nm === null) return false;
+  state.name = nm;
+  window._fresh = false;
+  save();
+  return true;
 }
 
 async function initDesktopIntegration() {
@@ -7299,6 +7538,16 @@ en:{tabFile:"File",tabTask:"Task",tabProject:"Project",tabView:"View",tabFormat:
  pickCellFirst:"Select cell(s) first",
  plHint2:"Prints exactly what you type above — no default symbols/legend added.",
  freshHint:"📄 New blank project — open saved ones via File → Projects",
+ keepMsg:"Keep this project in 🗂 My Projects so you can continue later?",
+ nmT:"Name this project",
+ nmMsg:"The project will be stored in 🗂 My Projects under this name.",
+ recT:"🛟 Recover unsaved work",
+ recHint:"The app closed unexpectedly last time. These files still have changes that were never written to disk.",
+ recOpen:"Reopen",
+ recDrop:"Discard",
+ recDropSel:"Discard selected",
+ recLater:"Later",
+ recOne:'"{f}" has changes that were never saved. Reopen the unsaved version and continue?',
  pAll:"All",pOpts:"Options",pPos:"Position:",pTop:"Top",pBottom:"Bottom",pText:"Content",
  pfHint:"Footer = free <b>text boxes</b> (notes, dates, signature blocks…). Drag boxes in the frame to arrange.",
  pPageNum:"Page number",pPgHint:"— bottom of EVERY page",pLeft:"Left",pCenter:"Center",pRight:"Right",
@@ -7351,6 +7600,16 @@ vi:{tabFile:"Tệp",tabTask:"Công việc",tabProject:"Dự án",tabView:"Hiển
  pickCellFirst:"Chọn ô trước",
  plHint2:"Chỉ in đúng nội dung điền ở trên — không tự thêm chú giải/ký hiệu nào.",
  freshHint:"📄 Dự án mới — mở dự án đã lưu: tab File → 📁 Dự án",
+ keepMsg:"Giữ dự án này trong 🗂 Dự án của tôi để làm tiếp sau không?",
+ nmT:"Đặt tên dự án",
+ nmMsg:"Dự án sẽ được cất trong 🗂 Dự án của tôi với tên này.",
+ recT:"🛟 Phục hồi dự án chưa lưu",
+ recHint:"Lần trước app đóng bất thường. Những file dưới đây còn thay đổi chưa kịp ghi ra đĩa.",
+ recOpen:"Mở lại",
+ recDrop:"Bỏ",
+ recDropSel:"Bỏ mục đã chọn",
+ recLater:"Để sau",
+ recOne:'File "{f}" có thay đổi chưa lưu. Mở lại bản dở dang để làm tiếp không?',
  pAll:"Tất cả",pOpts:"Tùy chọn",pPos:"Vị trí:",pTop:"Trên (Top)",pBottom:"Dưới (Bottom)",pText:"Nội dung",
  pfHint:"Footer = các <b>text box tự do</b> (ghi chú, ngày tháng, chỗ ký tên…). Kéo box trong khung để xếp vị trí.",
  pPageNum:"Số trang",pPgHint:"— dưới cùng MỌI trang",pLeft:"Trái",pCenter:"Giữa",pRight:"Phải",
@@ -7401,6 +7660,10 @@ $("#uiLang").onchange=e=>window.setLang(e.target.value);
 renderAll();
 bootOpenFromHash();
 initDesktopIntegration();
+bindRecovery();
+/* Chờ nhánh mở file trực tiếp (nhấp đúp .tdtc) giải quyết xong file của nó,
+   rồi mới hỏi những mục dở dang còn lại. */
+setTimeout(maybeShowRecovery, 700);
 setTimeout(() => checkUpdate(false), 3000);
 /* Kiểm tra lại định kỳ: app thường được mở liên tục nhiều ngày. Nếu chỉ kiểm
    tra lúc khởi động thì người dùng không bao giờ thấy bản mới cho tới khi
@@ -7432,6 +7695,7 @@ window.APP = {
   hasPST, pstOrdinal, idxOfId, setProjectSummary, children, insertTasksAt, setScheduleMode, moveBlockTo, moveColumn, toggleCollapse, computeHidden, colIdxOf, autoRowH, barTextFS,
   colLabelOf, autoFitCol, autoFitRows, textPx, paintColSel, fmtStyleCss,
   switchProject, newProject, duplicateProject, deleteProject, loadIndex, saveIndex, prjKey, updateFileLabel, openExternalData,
+  isDiskDirty, hasUnsavedWork, baseNameOf, markUnsaved, clearUnsavedFlag, purgeProject, pendingRecovery, renderRecList, maybeShowRecovery, closeFlow, openExternalDataAsk, recoverOne, save,
   get currentId(){ return currentId; },
   get colSel(){ return colSel; },
   selectCols(arr){ colSel=new Set(arr); paintColSel(); },

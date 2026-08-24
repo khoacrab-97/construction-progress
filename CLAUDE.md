@@ -93,8 +93,57 @@ Timescale options: Show (1/2/3 tầng), Size %, Scale separator, có Preview.
 * Biểu đồ nhân lực (histogram) theo cột Nhân lực
 * Lịch làm việc: ngày nghỉ tuần + ngày lễ
 * Lưu/mở file `.tdtc`, nhiều dự án trong máy
+* Nhắc lưu khi tắt app, và phục hồi bản dở dang sau khi app đóng bất thường (xem 3.6)
 * Song ngữ Việt/Anh
 * Tự kiểm tra và tải bản cập nhật
+
+### 3.6 Lưu \& phục hồi
+
+Hai chỗ chứa dữ liệu song song, có vai trò khác nhau:
+
+* **🗂 Dự án của tôi** (localStorage) — lưới an toàn. `save()` chạy sau mỗi lần
+sửa một ô, nên mất điện chỉ mất đúng ô đang gõ dở.
+* **File `.tdtc`** — bản chính thức để lưu trữ và chia sẻ, chỉ được ghi khi
+người dùng bấm lưu.
+
+Cầu nối giữa hai chỗ là cờ **`unsaved`** trên từng mục của `tiendo\_idx\_v1`:
+"bản trong máy mới hơn file trên đĩa".
+
+```
+bật   ← save(), khi dự án đang gắn với một file .tdtc
+tắt   ← ghi ra .tdtc thành công
+tắt   ← người dùng chủ động chọn "Không lưu" lúc tắt app
+```
+
+Vì vậy **cờ còn sót lúc khởi động = lần trước app chết bất thường** — tắt tử tế
+thì một trong hai nhánh của `closeFlow()` đã xóa cờ rồi. Không cần nhịp tim,
+không cần file tạm, không cần dò tiến trình.
+
+**Tắt app thủ công** — `closeFlow()`:
+
+```
+Hộp Có / Không / Hủy   (chỉ hiện khi isDiskDirty())
+  Có     → ghi ra .tdtc rồi đóng
+  Hủy    → ở lại
+  Không  → dự án ĐÃ gắn file  : đóng luôn, xóa cờ (lần sau không nhắc phục hồi)
+         → dự án CHƯA có file : hỏi tiếp "giữ trong 🗂 Dự án của tôi?"
+                Có    → đặt tên → đóng
+                Không → xóa hẳn khỏi danh mục → đóng
+```
+
+**Phục hồi** — hai lối vào, đều chỉ hỏi **một lần** cho mỗi mục:
+
+|Lối vào|Hành vi|
+|-|-|
+|Khởi động app|`maybeShowRecovery()` liệt kê mọi mục còn cờ. Mỗi dòng có **Mở lại** / **Bỏ**, kèm ô tick để bỏ hàng loạt. "Để sau" giữ nguyên, lần mở sau hỏi lại những mục chưa xử lý|
+|Mở đúng file đó|`openExternalDataAsk()` hỏi trước khi nạp. Trước đây `openExternalData()` **âm thầm đè** bản mới trong máy bằng nội dung cũ của file|
+
+Khi mở lại một bản dở dang, `recoverOne()` đọc lại file gốc rồi **bỏ nội dung đó
+đi** — mục đích chỉ là xác nhận file còn ở chỗ cũ và báo đường dẫn cho tiến trình
+chính, để 💾 Lưu ghi **đè đúng file**, không mở lại hộp Lưu thành.
+
+`isDiskDirty()` tính cả dự án **chưa từng ghi ra `.tdtc`** (`_docDirty` \+
+`stateHasContent()`); trước đây nhánh này luôn "sạch" nên tắt app không hỏi gì.
 
 \---
 
@@ -165,7 +214,7 @@ lưu vào `localStorage` và xuất ra file `.tdtc`.
 
 |Khóa|Nội dung|
 |-|-|
-|`tiendo\_idx\_v1`|Danh mục dự án `\[{id, name, updated, srcUrl}]`|
+|`tiendo\_idx\_v1`|Danh mục dự án `\[{id, name, updated, srcUrl, unsaved}]` — `unsaved` xem 3.6|
 |`tiendo\_cur\_v1`|Id dự án đang mở|
 |`tiendo\_prj\_<id>`|Toàn bộ `state` của một dự án|
 |`tiendo\_gantt\_v1`|Khóa bản cũ (thời còn 1 dự án duy nhất) — **giữ để chuyển đổi, không xóa**|
@@ -365,6 +414,8 @@ nhân thường gặp khi người dùng báo "chạy quan hệ không đúng".
 9. **Dòng tổng dự án** luôn ở đầu, mang số 0, in đậm mặc định, không giảm cấp được.
 10. **Auto fit** = phạm vi từ ngày sớm nhất đến muộn nhất, cộng chỗ cho nhãn chữ.
 Khi bật, **Size % và cuộn vô hạn không có tác dụng** (mâu thuẫn bản chất).
+11. **Chọn "Không lưu" là quyết định dứt khoát**: cờ `unsaved` bị xóa, lần mở sau
+không nhắc phục hồi nữa. Mỗi mục dở dang chỉ được hỏi đúng một lần (xem 3.6).
 
 \---
 
@@ -411,7 +462,10 @@ thả, token tự điền, xem trước kiểu MS Project, chia trang theo chi�
 **Hạ tầng** — tự tải/tự cài bản mới qua electron-updater, nhắc lưu kiểu MS Project,
 song ngữ, biểu đồ nhân lực.
 
-**Kiểm thử** — **21 bộ test, 720 assertion**, chạy trên jsdom, nằm trong `tests/`.
+**Lưu \& phục hồi** — nhắc lưu kiểu MS Project cho cả dự án chưa có file, hộp
+phục hồi sau khi app đóng bất thường, không còn cảnh file cũ đè bản mới (xem 3.6).
+
+**Kiểm thử** — **22 bộ test, 798 assertion**, chạy trên jsdom, nằm trong `tests/`.
 Chạy bằng `npm test`. Xem `tests/README.md` để biết cách viết thêm và quy trình
 chụp ảnh SVG.
 
@@ -465,6 +519,7 @@ hoạch và thực hiện. Phụ thuộc việc 1.
 |10|**Không đụng chuỗi IPC cập nhật** (`updates:check`, `updates:download`, `updates:quit-and-install`) nối `preload.js` ↔ `main.js` ↔ `update-service.js`|Đứt là máy người dùng không nhận được bản mới|
 |11|**Không đổi `publish` trong `package.json`**; không bật lại `verifyUpdateCodeSignature` khi chưa ký mã|Cập nhật thất bại im lặng trên mọi máy|
 |12|**Không bỏ `latest.yml` / `.blockmap`** khỏi asset release|`electron-updater` đọc không được, tự cập nhật chết|
+|13|**Không bỏ cờ `unsaved`** trong danh mục, cũng không bỏ `closeFlow()` / `openExternalDataAsk()`|Mất cơ chế phục hồi sau khi app chết; `openExternalData()` sẽ đè bản mới trong máy bằng nội dung cũ của file, âm thầm|
 
 ### 13.2 Bắt buộc làm mỗi lần sửa
 

@@ -21,36 +21,41 @@ if (!files.length) {
 let totalAsserts = 0, failedSuites = 0, totalFailures = 0;
 const started = Date.now();
 
-for (const f of files) {
-  const mod = require(path.join(SPEC_DIR, f));
-  const name = mod.name || f.replace(/\.test\.js$/, "");
-  const s = new Suite(name);
-  try {
-    mod.run(s);
-  } catch (e) {
-    s.failures.push("NGOẠI LỆ → " + (e && e.stack ? e.stack.split("\n").slice(0, 4).join("\n    ") : e));
-  }
-  totalAsserts += s.asserts;
-  if (s.failures.length) {
-    failedSuites++;
-    totalFailures += s.failures.length;
-    console.log("FAIL  " + pad(name) + s.asserts + " assertion");
-    s.failures.forEach(m => console.log("        ✗ " + m));
-  } else {
-    console.log("ok    " + pad(name) + s.asserts + " assertion");
-  }
-}
-
 function pad(s) { return (s + " ").padEnd(46, "."); }
 
-const secs = ((Date.now() - started) / 1000).toFixed(1);
-console.log("");
-console.log("-".repeat(62));
-console.log(
-  (failedSuites ? "THẤT BẠI" : "TẤT CẢ ĐẠT") +
-  ": " + (files.length - failedSuites) + "/" + files.length + " bộ test, " +
-  totalAsserts + " assertion" +
-  (totalFailures ? ", " + totalFailures + " lỗi" : "") +
-  " — " + secs + "s"
-);
-process.exit(failedSuites ? 1 : 0);
+/* run() được phép trả về Promise — các bộ test điều khiển hộp thoại bất đồng bộ
+   (luồng tắt app, phục hồi) cần chờ từng bước. */
+(async () => {
+  for (const f of files) {
+    const mod = require(path.join(SPEC_DIR, f));
+    const name = mod.name || f.replace(/\.test\.js$/, "");
+    const s = new Suite(name);
+    try {
+      const r = mod.run(s);
+      if (r && typeof r.then === "function") await r;
+    } catch (e) {
+      s.failures.push("NGOẠI LỆ → " + (e && e.stack ? e.stack.split("\n").slice(0, 4).join("\n    ") : e));
+    }
+    totalAsserts += s.asserts;
+    if (s.failures.length) {
+      failedSuites++;
+      totalFailures += s.failures.length;
+      console.log("FAIL  " + pad(name) + s.asserts + " assertion");
+      s.failures.forEach(m => console.log("        ✗ " + m));
+    } else {
+      console.log("ok    " + pad(name) + s.asserts + " assertion");
+    }
+  }
+
+  const secs = ((Date.now() - started) / 1000).toFixed(1);
+  console.log("");
+  console.log("-".repeat(62));
+  console.log(
+    (failedSuites ? "THẤT BẠI" : "TẤT CẢ ĐẠT") +
+    ": " + (files.length - failedSuites) + "/" + files.length + " bộ test, " +
+    totalAsserts + " assertion" +
+    (totalFailures ? ", " + totalFailures + " lỗi" : "") +
+    " — " + secs + "s"
+  );
+  process.exit(failedSuites ? 1 : 0);
+})();
