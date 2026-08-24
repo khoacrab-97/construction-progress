@@ -1,6 +1,6 @@
 # Construction Progress — Tài liệu bàn giao dự án
 
-> \*\*Phiên bản tài liệu:\*\* ứng với `Tiến độ thi công Ver.0826.24.004`
+> \*\*Phiên bản tài liệu:\*\* ứng với `Tiến độ thi công Ver 26.08.001`
 > \*\*Đọc file này trước khi sửa bất cứ thứ gì.\*\* Mục 13 là ràng buộc bắt buộc.
 
 \---
@@ -411,7 +411,7 @@ thả, token tự điền, xem trước kiểu MS Project, chia trang theo chi�
 **Hạ tầng** — tự cập nhật qua GAS, hộp thoại báo bản mới, nhắc lưu kiểu MS Project,
 song ngữ, biểu đồ nhân lực.
 
-**Kiểm thử** — **21 bộ test, 703 assertion**, chạy trên jsdom, nằm trong `tests/`.
+**Kiểm thử** — **21 bộ test, 719 assertion**, chạy trên jsdom, nằm trong `tests/`.
 Chạy bằng `npm test`. Xem `tests/README.md` để biết cách viết thêm và quy trình
 chụp ảnh SVG.
 
@@ -468,13 +468,32 @@ hoạch và thực hiện. Phụ thuộc việc 1.
 
 ### 13.2 Bắt buộc làm mỗi lần sửa
 
-1. **Tăng `APPVER`** theo dạng `Ver.MMYY.DD.NNN`.
-2. **Kiểm tra cú pháp**: `npm run test:syntax` (nạp phần `<script>` bằng `new Function()`).
-3. **Chạy lại toàn bộ bộ test**: `npm test` — không được để bộ nào đỏ.
-4. Khi phát hành bản desktop: đẩy tag `vX.Y.Z`. **`APPVER` không quyết định gì ở
-kênh desktop** — `electron-updater` so sánh semver lấy từ tag. `APPVER` chỉ là
-nhãn hiển thị và là hệ so sánh của kênh GAS.
+1. **Kiểm tra cú pháp**: `npm run test:syntax` (nạp phần `<script>` bằng `new Function()`).
+2. **Chạy lại toàn bộ bộ test**: `npm test` — không được để bộ nào đỏ.
+3. Khi phát hành: đẩy tag `vYY.M.N` (xem quy ước đánh số ngay dưới). Tag là
+**nguồn duy nhất** — CI ghi `version` vào `package.json`, app đọc lại bằng
+`app.getVersion()` rồi `fmtVer()` dựng nhãn hiển thị.
+4. `APPVER` trong `src/index.html` chỉ là **nhãn dự phòng cho bản mở bằng trình
+duyệt** (không có `app.getVersion()`). Cập nhật khi phát hành bản trình duyệt.
 5. Nếu cập nhật bản trình duyệt qua GAS: `VER` trong GAS **phải khớp** `APPVER`.
+
+### 13.2b Quy ước đánh số phiên bản
+
+```
+tag / semver     hiển thị trong app
+v26.8.1     →    Ver 26.08.001
+v26.8.2     →    Ver 26.08.002     (cập nhật lần 2 trong tháng 8)
+v26.9.1     →    Ver 26.09.001     (sang tháng — lần cập nhật RESET về 001)
+v27.1.1     →    Ver 27.01.001
+```
+
+Ba phần: **2 số cuối của năm . tháng . lần cập nhật trong tháng**. Sang tháng mới
+là quay lại 001. Vì `electron-updater` so sánh theo semver nên thứ tự vẫn đúng
+(26.9.1 > 26.8.99). `verKey()` cũng phải giữ đúng thứ tự này — có test canh riêng
+trường hợp "sang tháng, số nhỏ hơn nhưng phải mới hơn".
+
+Nhãn hiển thị ở **góc phải hàng ribbon trên cùng** (ô `#appVer`) và trong hộp
+Hướng dẫn.
 
 ### 13.3 Quy trình bắt buộc khi đụng vào phần vẽ Gantt
 

@@ -132,6 +132,23 @@ jobs:
           $blockmap = "${{ steps.assets.outputs.blockmap }}"
           $latest = "${{ steps.assets.outputs.latest }}"
           $stable = "${{ steps.assets.outputs.stable }}"
+          $version = "${{ steps.version.outputs.version }}"
+
+          # Ghi chú phát hành kèm LINK TẢI TRỰC TIẾP của đúng bản này,
+          # để lấy file mang đi nơi khác mà không phải mò trong trang release.
+          $p = $version.Split(".")
+          $verLabel = "Ver {0:d2}.{1:d2}.{2:d3}" -f ([int]$p[0] % 100), [int]$p[1], [int]$p[2]
+          $notes = @(
+            "**$verLabel**  (gói cài $version)",
+            "",
+            "Link tải bản này:",
+            "https://github.com/$repo/releases/download/$tag/Tien-do-thi-cong-Cai-dat-$version.exe",
+            "",
+            "Link tải cố định — luôn trỏ bản mới nhất:",
+            "https://github.com/$repo/releases/latest/download/Tien-do-thi-cong-Setup.exe"
+          ) -join "`n"
+          $notesFile = "dist/release-notes.md"
+          Set-Content -Path $notesFile -Value $notes -Encoding utf8
 
           gh release view $tag --repo $repo *> $null
           if ($LASTEXITCODE -ne 0) {
@@ -139,7 +156,7 @@ jobs:
               --repo $repo `
               --verify-tag `
               --title $tag `
-              --notes "Phát hành $tag" `
+              --notes-file $notesFile `
               --latest
             if ($LASTEXITCODE -ne 0) {
               throw "Không tạo được GitHub Release $tag."
@@ -183,6 +200,9 @@ jobs:
         shell: pwsh
         run: |
           "Đã phát hành release ${{ steps.version.outputs.tag }}" >> $env:GITHUB_STEP_SUMMARY
+          "" >> $env:GITHUB_STEP_SUMMARY
+          "Link tải BẢN NÀY:" >> $env:GITHUB_STEP_SUMMARY
+          "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/Tien-do-thi-cong-Cai-dat-${{ steps.version.outputs.version }}.exe" >> $env:GITHUB_STEP_SUMMARY
           "" >> $env:GITHUB_STEP_SUMMARY
           "Link tải CỐ ĐỊNH cho người cài mới (không đổi theo phiên bản):" >> $env:GITHUB_STEP_SUMMARY
           "https://github.com/${{ github.repository }}/releases/latest/download/Tien-do-thi-cong-Setup.exe" >> $env:GITHUB_STEP_SUMMARY

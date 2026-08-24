@@ -41,6 +41,10 @@ header{
   display:flex;flex-direction:column;
 }
 .hrow1{display:flex;align-items:center;gap:4px;padding:4px 12px 0 12px}
+/* Nhãn phiên bản: góc phải hàng trên cùng, ngay dưới nút thu nhỏ cửa sổ */
+#appVer{font-size:10.5px;color:var(--ink-soft);white-space:nowrap;margin-left:12px;
+  font-variant-numeric:tabular-nums;letter-spacing:.2px;
+  border:1px solid var(--line);border-radius:4px;padding:1px 7px;background:#f6f8fa}
 header .brand{display:flex;flex-direction:column;margin-right:14px}
 header .brand b{font-size:14px;letter-spacing:.3px}
 header .brand span{font-size:10.5px;color:var(--ink-soft)}
@@ -380,6 +384,7 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
     <span id="fileLabel" style="font-size:11px;color:var(--accent-dark);white-space:nowrap;margin-right:8px"></span>
     <label style="font-size:11.5px;color:var(--ink-soft);white-space:nowrap" data-i18n="rbStartL">Bắt đầu:</label>
     <input type="text" id="rbStart" placeholder="dd/mm/yyyy" style="width:96px;height:24px;font-size:11.5px;border:1px solid var(--line-strong);border-radius:5px;padding:1px 6px" title="Ngày bắt đầu dự án — gõ dd/mm/yyyy hoặc bấm 📅"><button class="icon" id="rbStartCal" title="Chọn ngày trong lịch" style="height:24px">📅</button>
+    <span id="appVer" title="Phiên bản đang chạy — Ver [2 số cuối năm].[tháng].[lần cập nhật trong tháng]"></span>
   </div>
   <div class="rpanels">
 
@@ -1466,23 +1471,35 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
 /* ============================================================
    TIẾN ĐỘ THI CÔNG — single-file Gantt scheduler
    ============================================================ */
-let APPVER = "Tiến độ thi công Ver.0826.24.004"; // Nhãn phiên bản dự phòng cho bản trình duyệt.
+let APPVER = "Tiến độ thi công Ver 26.08.001"; // Nhãn dự phòng cho bản mở bằng trình duyệt.
 const DAY = 86400000;
 const $ = s => document.querySelector(s);
 const IS_DESKTOP = !!(window.desktop && window.desktop.isElectron);
 
+/* semver của gói cài (26.8.1) → nhãn hiển thị "Ver 26.08.001".
+   Quy ước: 2 số cuối của năm . tháng . lần cập nhật trong tháng (reset mỗi tháng). */
+function fmtVer(v) {
+  const m = String(v || "").match(/(\d{1,4})\.(\d{1,2})\.(\d{1,3})/);
+  if (!m) return "";
+  return "Ver " + String(+m[1] % 100).padStart(2, "0")
+    + "." + String(+m[2]).padStart(2, "0")
+    + "." + String(+m[3]).padStart(3, "0");
+}
 function appVersionLabel() {
   const shortVersion = String(APPVER || "")
     .replace(/^Tiến độ thi công\s*/i, "")
     .trim();
-  return "Phiên bản: " + (shortVersion || "đang tải");
+  return shortVersion || "đang tải";
 }
 
 function syncAppVersionLabels() {
+  const label = appVersionLabel();
   const helpVersion = $("#helpVer");
   if (helpVersion) helpVersion.textContent = APPVER;
   const helpAppVersion = $("#helpAppVersion");
-  if (helpAppVersion) helpAppVersion.textContent = appVersionLabel();
+  if (helpAppVersion) helpAppVersion.textContent = "Phiên bản: " + label;
+  const ribbonVersion = $("#appVer");   // góc phải hàng ribbon trên cùng
+  if (ribbonVersion) ribbonVersion.textContent = label;
 }
 
 /* ---------- Date utils ---------- */
@@ -7097,7 +7114,7 @@ async function initDesktopIntegration() {
   if (!(window.desktop && window.desktop.isElectron)) return;
   try {
     const v = await window.desktop.getAppVersion();
-    if (v) APPVER = "Tiến độ thi công " + v;
+    if (v) APPVER = "Tiến độ thi công " + (fmtVer(v) || v);
     syncAppVersionLabels();
     updateWindowTitle();
   } catch (e) { }
@@ -7123,10 +7140,16 @@ async function initDesktopIntegration() {
 const UPDATE_URL = "https://script.google.com/macros/s/AKfycbxjviUVnO7824uC2D1SO-qgsYZ1npUpe0IKqpiEcMKUzxtj3Ac_5G3op1iV6_enwvWe/exec"; // kênh kiểm tra bản cập nhật (GAS Web App)
 
 function verKey(v){
-  // "…Ver.MMYY.DD.NNN" → số so sánh được: YY*1e7 + MM*1e5 + DD*1e3 + NNN
-  const m=String(v||"").match(/Ver\.(\d{2})(\d{2})\.(\d{2})\.(\d{3})/);
-  if(!m) return 0;
-  return (+m[2])*1e7 + (+m[1])*1e5 + (+m[3])*1e3 + (+m[4]);
+  const s=String(v||"");
+  // Định dạng ĐANG DÙNG: "Ver YY.MM.NNN" → YY*1e7 + MM*1e5 + 99*1e3 + NNN.
+  // Chỗ 99*1e3 giữ nguyên vị trí của "ngày" ở định dạng cũ, để mọi bản mới
+  // luôn lớn hơn mọi bản cũ phát hành trong cùng tháng.
+  let m=s.match(/Ver[\s.]+(\d{2})\.(\d{2})\.(\d{3})(?!\d)/);
+  if(m) return (+m[1])*1e7 + (+m[2])*1e5 + 99*1e3 + (+m[3]);
+  // Định dạng CŨ "Ver.MMYY.DD.NNN" — giữ để so với các bản đã phát hành trước đây
+  m=s.match(/Ver\.(\d{2})(\d{2})\.(\d{2})\.(\d{3})/);
+  if(m) return (+m[2])*1e7 + (+m[1])*1e5 + (+m[3])*1e3 + (+m[4]);
+  return 0;
 }
 function applyUpdateInfo(info){
   if(!info || !info.ver) return false;
@@ -7451,7 +7474,7 @@ window.APP = {
   focusCell, selectRect, paintCellSel, targetCells, formatCells, toggleFmt, getFmt, getCellText,
   clearCellContents, insertTaskAt, doUndo, doRedo, commitHistory, totalCols, colKeyAt,
   getColW, projectLabel, printInfoLine,
-  APPVER, verKey, applyUpdateInfo, checkUpdate,
+  APPVER, verKey, fmtVer, appVersionLabel, applyUpdateInfo, checkUpdate,
   hasPST, pstOrdinal, idxOfId, setProjectSummary, children, insertTasksAt, setScheduleMode, moveBlockTo, moveColumn, toggleCollapse, computeHidden, colIdxOf, autoRowH, barTextFS,
   colLabelOf, autoFitCol, autoFitRows, textPx, paintColSel, fmtStyleCss,
   switchProject, newProject, duplicateProject, deleteProject, loadIndex, saveIndex, prjKey, updateFileLabel, openExternalData,

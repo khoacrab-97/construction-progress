@@ -38,9 +38,12 @@ chỉ kích hoạt `.github/workflows/ci.yml` (chạy `npm test`), không tạo 
 
 ```bash
 npm test                     # phải xanh trước đã
-git tag v1.0.5               # số phiên bản dạng x.y.z
-git push origin v1.0.5
+git tag v26.8.2              # <2 số cuối năm>.<tháng>.<lần cập nhật trong tháng>
+git push origin v26.8.2
 ```
+
+Số phiên bản đọc là **Ver 26.08.002**. Sang tháng mới thì lần cập nhật quay lại
+001 (`v26.9.1` → **Ver 26.09.001**).
 
 Hoặc vào tab **Actions → Build và phát hành → Run workflow**, nhập số phiên bản.
 
@@ -71,6 +74,16 @@ https://github.com/khoacrab-97/construction-progress/releases/latest/download/Ti
 
 Mỗi lần phát hành, workflow tạo thêm một bản sao installer mang tên cố định
 `Tien-do-thi-cong-Setup.exe` nên link trên luôn trả về bản mới nhất.
+
+### Link tải của từng bản
+
+Mỗi release có ghi chú kèm sẵn link tải trực tiếp của đúng bản đó. Khuôn chung:
+
+```text
+https://github.com/khoacrab-97/construction-progress/releases/download/<tag>/Tien-do-thi-cong-Cai-dat-<version>.exe
+```
+
+Ví dụ: `.../releases/download/v26.8.1/Tien-do-thi-cong-Cai-dat-26.8.1.exe`
 
 Trang tải (xem ghi chú phát hành, các phiên bản cũ):
 
