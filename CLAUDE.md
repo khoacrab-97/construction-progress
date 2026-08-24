@@ -95,7 +95,7 @@ Timescale options: Show (1/2/3 tầng), Size %, Scale separator, có Preview.
 * Lưu/mở file `.tdtc`, nhiều dự án trong máy
 * Nhắc lưu khi tắt app, và phục hồi bản dở dang sau khi app đóng bất thường (xem 3.6)
 * Song ngữ Việt/Anh
-* Tự kiểm tra và tải bản cập nhật
+* Tự kiểm tra cập nhật, hỏi trước rồi mới tải – cài – mở lại (xem mục 4)
 
 ### 3.6 Lưu \& phục hồi
 
@@ -186,7 +186,9 @@ Bản desktop — kênh chính
   index.html ──IPC──▶ main.js ──▶ electron-updater
                                    ──GET──▶ Releases/latest.yml  (có bản mới?)
                                    ──GET──▶ .exe + .blockmap     (tải delta)
-  Tải: autoDownload = true → tải ngầm ngay khi thấy bản mới
+  Hỏi: autoDownload = FALSE → thấy bản mới thì chỉ hiện hộp thoại
+       Cập nhật / Để sau. Chưa bấm thì chưa tải một byte nào
+  Tải: chỉ khi bấm "Cập nhật" → downloadUpdate(), hiện % ngay trong hộp
   Cài: quitAndInstall(true, true) → NSIS chạy với /S, cài đè rồi tự mở lại app
   Sự kiện available/progress/downloaded đẩy về giao diện qua kênh updates:event
 
@@ -195,8 +197,24 @@ Bản mở bằng trình duyệt — KHÔNG có kênh cập nhật nào
 ```
 
 Kiểm tra: 3 giây sau khi mở app, rồi lặp lại mỗi 4 giờ (`UPDATE_EVERY_MS`), và
-bất cứ lúc nào qua **Trợ giúp → 🔄 Kiểm tra cập nhật**. Toàn bộ tải – cài – mở lại
-chạy tự động; chỉ dừng hỏi khi còn thay đổi chưa lưu ra file.
+bất cứ lúc nào qua **Trợ giúp → 🔄 Kiểm tra cập nhật**.
+
+Luồng đầy đủ:
+
+```
+thấy bản mới ──▶ hộp thoại "Đã có bản mới Ver YY.MM.NNN"
+                   ├─ Để sau    → đóng hộp; nút ⬆ trên ribbon vẫn còn.
+                   │              Không hỏi lại bản ĐÓ trong phiên này
+                   └─ Cập nhật  → tải (hiện %) ──▶ còn thay đổi chưa lưu?
+                                                     ├─ có  → hỏi lưu trước
+                                                     └─ không
+                                  ──▶ cài im lặng ──▶ tự mở lại app
+```
+
+Bấm "Cập nhật" rồi thì **không phải bấm gì thêm**. `offerUpdate()` là cửa duy
+nhất dẫn tới hộp thoại — gom lại một chỗ vì có hai nguồn cùng báo "có bản mới"
+(promise của `checkForUpdates()` và sự kiện `update-available`), không gom thì
+hộp bật hai lần. Cờ `_updDismissed` nhớ bản đã hoãn, `_updOffered` chống hỏi lặp.
 
 **Phát hành:** đẩy tag `vX.Y.Z` → `.github/workflows/release.yml` chạy test, build
 installer, tạo GitHub Release. Push thường lên `main` chỉ chạy `ci.yml` (test).
@@ -465,7 +483,7 @@ song ngữ, biểu đồ nhân lực.
 **Lưu \& phục hồi** — nhắc lưu kiểu MS Project cho cả dự án chưa có file, hộp
 phục hồi sau khi app đóng bất thường, không còn cảnh file cũ đè bản mới (xem 3.6).
 
-**Kiểm thử** — **22 bộ test, 798 assertion**, chạy trên jsdom, nằm trong `tests/`.
+**Kiểm thử** — **22 bộ test, 827 assertion**, chạy trên jsdom, nằm trong `tests/`.
 Chạy bằng `npm test`. Xem `tests/README.md` để biết cách viết thêm và quy trình
 chụp ảnh SVG.
 

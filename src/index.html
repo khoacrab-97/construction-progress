@@ -904,17 +904,23 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
 </div>
 
 <!-- Thông báo bản cập nhật mới -->
-<div id="updOverlay" style="position:fixed;inset:0;background:rgba(20,30,40,.45);display:none;align-items:center;justify-content:center;z-index:70">
-  <div class="modal" style="width:400px">
-    <h3>Construction Progress</h3>
-    <div class="body">
-      <div id="updMsg" style="font-size:13px;line-height:1.6;padding:6px 2px"></div>
+<div id="updOverlay" style="position:fixed;inset:0;background:rgba(16,34,50,.42);display:none;align-items:center;justify-content:center;z-index:70">
+  <div class="dlg">
+    <div class="dbody">
+      <div class="dicon">⬆️</div>
+      <div>
+        <div class="dmain" id="updMsg"></div>
+        <div class="dsub" id="updSub"></div>
+        <div id="updBar" style="display:none;margin-top:12px;height:6px;border-radius:3px;background:var(--line);overflow:hidden">
+          <div id="updBarIn" style="height:100%;width:0%;background:var(--accent);transition:width .25s"></div>
+        </div>
+      </div>
     </div>
-    <div class="foot" id="updFoot1">
-      <button id="updLater" data-i18n="updLater">Để sau</button>
+    <div class="dfoot" id="updFoot1">
       <button class="primary" id="updGo" data-i18n="updGo">Cập nhật</button>
+      <button id="updLater" data-i18n="updLater">Để sau</button>
     </div>
-    <div class="foot" id="updFoot2" style="display:none">
+    <div class="dfoot" id="updFoot2" style="display:none">
       <button class="primary" id="updOk">OK</button>
     </div>
   </div>
@@ -7411,16 +7417,23 @@ async function initDesktopIntegration() {
    Kênh Google Apps Script đã bị gỡ bỏ hẳn — không khôi phục. Bản mở bằng trình
    duyệt không tự cập nhật nữa; muốn bản mới thì tải trình cài từ GitHub. */
 
+/* Nút ⬆ trên ribbon — vẫn còn sau khi người dùng chọn "Để sau",
+   để họ quay lại cập nhật lúc nào cũng được. */
+function showUpdRibbonBtn(verShort) {
+  const b = $("#updBtn");
+  if (!b) return;
+  b.style.display = "inline-block";
+  b.textContent = "⬆ " + (fmtVer(verShort) || verShort);
+  b.title = t("updGo");
+  b.onclick = () => showDesktopUpdateModal(verShort);
+}
 function showDesktopUpdateModal(verShort) {
   window._updVer = verShort;
-  const b = $("#updBtn");
-  if (b) {
-    b.style.display = "inline-block";
-    b.textContent = "⬆ " + verShort;
-    b.title = t("updGo");
-    b.onclick = () => showDesktopUpdateModal(verShort);
-  }
-  $("#updMsg").textContent = t("updHas") + " " + verShort;
+  showUpdRibbonBtn(verShort);
+  $("#updMsg").textContent = t("updHas") + " " + (fmtVer(verShort) || verShort);
+  $("#updSub").textContent = t("updSub").replace("{cur}", appVersionLabel());
+  $("#updBar").style.display = "none";
+  $("#updBarIn").style.width = "0%";
   window._desktopUpdateAvailable = true;
   window._desktopUpdateDownloaded = false;
   const go = $("#updGo"), later = $("#updLater");
@@ -7430,24 +7443,49 @@ function showDesktopUpdateModal(verShort) {
   $("#updFoot2").style.display = "none";
   $("#updOverlay").style.display = "flex";
 }
+/* Cửa duy nhất dẫn tới hộp thoại cập nhật. Gom lại một chỗ vì có hai nguồn
+   cùng báo "có bản mới": promise của checkForUpdates() và sự kiện
+   update-available — nếu không gom thì hộp thoại bật hai lần. */
+function offerUpdate(ver, manual) {
+  window._desktopUpdateAvailable = true;
+  window._updVer = ver;
+  showUpdRibbonBtn(ver);
+  if (!manual) {
+    if (window._updDismissed === ver) return;   // đã chọn "Để sau" cho đúng bản này
+    if (window._updOffered === ver) return;     // đã hỏi rồi trong phiên này
+    if (window._desktopUpdateDownloading) return;
+  }
+  window._updOffered = ver;
+  showDesktopUpdateModal(ver || "bản cập nhật");
+}
+/* Người dùng đã bấm "Cập nhật" → từ đây trở đi chạy một mạch:
+   tải → (hỏi lưu nếu còn dở) → cài im lặng → tự mở lại. Không bấm gì thêm. */
 async function downloadDesktopUpdate() {
   const go = $("#updGo"), later = $("#updLater");
   if (go) go.disabled = true;
   if (later) later.disabled = true;
-  $("#updMsg").textContent = "Đang tải bản cập nhật...";
+  window._desktopUpdateDownloading = true;
+  $("#updMsg").textContent = t("updDl");
+  $("#updSub").textContent = t("updDlSub");
+  $("#updBar").style.display = "";
   try {
     const res = await window.desktop.downloadUpdate();
     if (res && res.status === "downloaded") {
       window._desktopUpdateDownloaded = true;
-      $("#updMsg").textContent = "Bản cập nhật đã tải xong. Khởi động lại để cài đặt.";
-      if (go) { go.disabled = false; go.textContent = "Khởi động lại & cài đặt"; }
-      if (later) later.disabled = false;
+      // Sự kiện "downloaded" thường tới trước và đã gọi cài đặt; gọi lại ở đây
+      // là lưới an toàn cho trường hợp sự kiện không tới. Hàm có khóa chống lặp.
+      autoInstallDesktopUpdate(window._updVer || "");
       return;
     }
-    $("#updMsg").textContent = "Không tải được bản cập nhật"
-      + (res && res.message ? ": " + res.message : "");
+    window._desktopUpdateDownloading = false;
+    $("#updMsg").textContent = t("updErr");
+    $("#updSub").textContent = (res && res.message) ? res.message : "";
+    $("#updBar").style.display = "none";
   } catch (e) {
-    $("#updMsg").textContent = "Không tải được bản cập nhật";
+    window._desktopUpdateDownloading = false;
+    $("#updMsg").textContent = t("updErr");
+    $("#updSub").textContent = "";
+    $("#updBar").style.display = "none";
   } finally {
     if (!window._desktopUpdateDownloaded) {
       if (go) go.disabled = false;
@@ -7458,17 +7496,22 @@ async function downloadDesktopUpdate() {
 function handleDesktopUpdateEvent(ev) {
   if (!ev || !ev.type) return;
   if (ev.type === "available") {
-    window._desktopUpdateAvailable = true;
-    window._updVer = ev.version || "";
-    toast("Có bản mới " + (ev.version || "") + " — đang tải trong nền…");
+    // KHÔNG tải ngay — hỏi người dùng trước.
+    offerUpdate(ev.version || "", false);
     return;
   }
   if (ev.type === "progress") {
-    // Chỉ báo ở mốc 25/50/75% để không spam thông báo suốt lúc tải
     const p = ev.percent | 0;
+    const bar = $("#updBarIn");
+    if (bar) bar.style.width = Math.max(0, Math.min(100, p)) + "%";
+    if ($("#updOverlay").style.display === "flex") {
+      $("#updMsg").textContent = t("updDl") + " " + p + "%";
+      return;
+    }
+    // Hộp thoại đã đóng (hiếm) → báo ở mốc 25/50/75 cho đỡ phiền
     if (p && p % 25 === 0 && p < 100 && window._updLastPct !== p) {
       window._updLastPct = p;
-      toast("Đang tải bản cập nhật… " + p + "%");
+      toast(t("updDl") + " " + p + "%");
     }
     return;
   }
@@ -7495,9 +7538,11 @@ async function autoInstallDesktopUpdate(ver) {
         return;
       }
     }
-    $("#updMsg").textContent = "Đã tải xong bản " + ver + ". Đang cài đặt và khởi động lại…";
+    $("#updMsg").textContent = t("updInst").replace("{v}", fmtVer(ver) || ver);
+    $("#updSub").textContent = t("updInstSub");
+    $("#updBar").style.display = "none";
     $("#updFoot1").style.display = "none";
-    $("#updFoot2").style.display = "";
+    $("#updFoot2").style.display = "none";   // đang cài, không có gì để bấm
     $("#updOverlay").style.display = "flex";
     window._allowClose = true; // đang cài có chủ đích — không hỏi lại lúc đóng
     setTimeout(() => { try { window.desktop.quitAndInstall(); } catch (e) { } }, 1200);
@@ -7513,12 +7558,8 @@ function checkUpdate(manual) {
         if (!res) throw new Error("Không có kết quả cập nhật");
         if ((res.status === "available" || res.status === "ok") && res.updateInfo) {
           const ver = res.updateInfo.version || "";
-          window._desktopUpdateAvailable = true;
-          window._updVer = ver;
-          // Tự động: KHÔNG chặn màn hình. Bản mới tải ngầm, cài xong tự khởi động lại.
-          // Chỉ khi người dùng tự bấm "Kiểm tra cập nhật" mới mở hộp thoại.
-          if (manual) showDesktopUpdateModal(ver || "bản cập nhật");
-          else toast(ver ? ("Có bản mới " + ver + " — đang tải trong nền…") : "Đang tải bản cập nhật…");
+          // Hỏi trước, không tự tải. offerUpdate lo việc không hỏi lặp lại.
+          offerUpdate(ver, !!manual);
           return;
         }
         if (manual) {
@@ -7564,7 +7605,13 @@ en:{tabFile:"File",tabTask:"Task",tabProject:"Project",tabView:"View",tabFormat:
  noFmtClip:"No format copied yet — use Copy inside the app first",pastedFmt:"Applied format to {n} cell(s)",
  fndTitle:"🔍 Find & Replace",fndFind:"Find:",fndRepl:"Replace with:",fndNext:"Find Next",fndPrev:"Find Previous",
  fndRep:"Replace",fndRepAll:"Replace All",fndNone:"Not found",fndCount:"{n} cell(s) match",fndDone:"Replaced {n} cell(s)",gClipboard:"Clipboard",cbPaste:"Paste",cbCut:"Cut",cbCopy:"Copy",cbPainter:"Format Painter",
- painterOn:"🖌 Format copied — now select the target cell(s)",clipEmpty:"Clipboard is empty",clipDenied:"Browser blocked clipboard — use Ctrl+V instead",filled:"Filled {n} cell(s)",pstL:"Project Summary Task",gStruct:"Project Structure",updHas:"A new update is available:",updGo:"Update",updLater:"Later",updRestart:"Please close the application and restart to continue.",svMsg:'Want to save your changes to "{f}"?',svYes:"Yes",svNo:"No",svCancel:"Cancel",svThis:"current project",fsMenu:"⚙ Field Settings…",fsTitle:"⚙ Field Settings",fsField:"Field name",fsTitleL:"Title",fsAlT:"Align title",fsAlD:"Align data",fsW:"Width",fsCat:"Category",fsDec:"Decimal places",fsSepL:"Use 1000 separator (1.000)",fsSym:"Symbol",fsAfter:"After (1.000 ₫)",fsBefore:"Before ($ 1.000)",fsDateF:"Date format",alLeft:"Left",alCenter:"Center",alRight:"Right",tipsT:"💡 Data entry & Printing tips",close:"Close",bLink:"Dependency link",pfRtHint:"Select text in the box then Ctrl+B / Ctrl+I / Ctrl+U — formats just that part (like Header).",
+ painterOn:"🖌 Format copied — now select the target cell(s)",clipEmpty:"Clipboard is empty",clipDenied:"Browser blocked clipboard — use Ctrl+V instead",filled:"Filled {n} cell(s)",pstL:"Project Summary Task",gStruct:"Project Structure",updHas:"A new update is available:",
+ updSub:"You are on {cur}. Choosing Update downloads it, installs it, and reopens the app — nothing else to click.",
+ updDl:"Downloading update…",
+ updDlSub:"The app will install it and reopen by itself when the download finishes.",
+ updInst:"{v} downloaded. Installing and restarting…",
+ updInstSub:"The app closes and reopens on its own. Do not turn off the computer.",
+ updErr:"Could not download the update",updGo:"Update",updLater:"Later",updRestart:"Please close the application and restart to continue.",svMsg:'Want to save your changes to "{f}"?',svYes:"Yes",svNo:"No",svCancel:"Cancel",svThis:"current project",fsMenu:"⚙ Field Settings…",fsTitle:"⚙ Field Settings",fsField:"Field name",fsTitleL:"Title",fsAlT:"Align title",fsAlD:"Align data",fsW:"Width",fsCat:"Category",fsDec:"Decimal places",fsSepL:"Use 1000 separator (1.000)",fsSym:"Symbol",fsAfter:"After (1.000 ₫)",fsBefore:"Before ($ 1.000)",fsDateF:"Date format",alLeft:"Left",alCenter:"Center",alRight:"Right",tipsT:"💡 Data entry & Printing tips",close:"Close",bLink:"Dependency link",pfRtHint:"Select text in the box then Ctrl+B / Ctrl+I / Ctrl+U — formats just that part (like Header).",
  gNwt:"Non-working time",nwDrawL:"Draw:",nwBehind:"Behind task bars",nwFront:"In front of task bars",nwNone:"Do not draw",nwSolid:"Solid",nwHatch:"Hatch ▨",
  btnGl:"▤ Gridlines…",gGl:"Gridlines",glTitle:"▤ Gridlines",glLine:"Line to change:",
  glRows:"Gantt Rows",glBars:"Bar Rows",glCols:"Tier Column",glNone:"(None)",
@@ -7629,7 +7676,13 @@ vi:{tabFile:"Tệp",tabTask:"Công việc",tabProject:"Dự án",tabView:"Hiển
  noFmtClip:"Chưa copy định dạng nào — hãy Copy trong app trước",pastedFmt:"Đã áp định dạng cho {n} ô",
  fndTitle:"🔍 Tìm & Thay thế",fndFind:"Tìm:",fndRepl:"Thay bằng:",fndNext:"Tìm tiếp",fndPrev:"Tìm lùi",
  fndRep:"Thay thế",fndRepAll:"Thay tất cả",fndNone:"Không tìm thấy",fndCount:"Khớp {n} ô",fndDone:"Đã thay {n} ô",gClipboard:"Bảng tạm",cbPaste:"Dán",cbCut:"Cắt",cbCopy:"Chép",cbPainter:"Chổi định dạng",
- painterOn:"🖌 Đã lấy định dạng — giờ chọn ô cần áp",clipEmpty:"Bảng tạm đang trống",clipDenied:"Trình duyệt chặn bảng tạm — hãy dùng Ctrl+V",filled:"Đã điền {n} ô",pstL:"Dòng tổng dự án",gStruct:"Cấu trúc dự án",updHas:"Có bản cập nhật mới:",updGo:"Cập nhật",updLater:"Để sau",updRestart:"Vui lòng đóng ứng dụng và khởi động lại để tiếp tục sử dụng.",svMsg:'Bạn có muốn lưu thay đổi vào "{f}" không?',svYes:"Có",svNo:"Không",svCancel:"Hủy",svThis:"dự án hiện tại",fsMenu:"⚙ Field Settings…",fsTitle:"⚙ Field Settings — Cài đặt cột",fsField:"Tên trường gốc",fsTitleL:"Tiêu đề hiển thị",fsAlT:"Căn tiêu đề",fsAlD:"Căn dữ liệu",fsW:"Độ rộng",fsCat:"Category",fsDec:"Số thập phân",fsSepL:"Dấu phân cách nghìn (1.000)",fsSym:"Ký hiệu",fsAfter:"Sau số (1.000 ₫)",fsBefore:"Trước số ($ 1.000)",fsDateF:"Định dạng ngày",alLeft:"Trái",alCenter:"Giữa",alRight:"Phải",tipsT:"💡 Mẹo nhập liệu & In ấn",close:"Đóng",bLink:"Đường phụ thuộc",pfRtHint:"Bôi đen chữ trong ô rồi nhấn Ctrl+B / Ctrl+I / Ctrl+U — định dạng áp riêng đoạn đó (như Header).",
+ painterOn:"🖌 Đã lấy định dạng — giờ chọn ô cần áp",clipEmpty:"Bảng tạm đang trống",clipDenied:"Trình duyệt chặn bảng tạm — hãy dùng Ctrl+V",filled:"Đã điền {n} ô",pstL:"Dòng tổng dự án",gStruct:"Cấu trúc dự án",updHas:"Có bản cập nhật mới:",
+ updSub:"Bạn đang dùng {cur}. Chọn Cập nhật là app tự tải, tự cài rồi tự mở lại — không phải bấm gì thêm.",
+ updDl:"Đang tải bản cập nhật…",
+ updDlSub:"Tải xong app sẽ tự cài và tự mở lại.",
+ updInst:"Đã tải xong {v}. Đang cài đặt và khởi động lại…",
+ updInstSub:"App sẽ tự đóng rồi tự mở lại. Đừng tắt máy lúc này.",
+ updErr:"Không tải được bản cập nhật",updGo:"Cập nhật",updLater:"Để sau",updRestart:"Vui lòng đóng ứng dụng và khởi động lại để tiếp tục sử dụng.",svMsg:'Bạn có muốn lưu thay đổi vào "{f}" không?',svYes:"Có",svNo:"Không",svCancel:"Hủy",svThis:"dự án hiện tại",fsMenu:"⚙ Field Settings…",fsTitle:"⚙ Field Settings — Cài đặt cột",fsField:"Tên trường gốc",fsTitleL:"Tiêu đề hiển thị",fsAlT:"Căn tiêu đề",fsAlD:"Căn dữ liệu",fsW:"Độ rộng",fsCat:"Category",fsDec:"Số thập phân",fsSepL:"Dấu phân cách nghìn (1.000)",fsSym:"Ký hiệu",fsAfter:"Sau số (1.000 ₫)",fsBefore:"Trước số ($ 1.000)",fsDateF:"Định dạng ngày",alLeft:"Trái",alCenter:"Giữa",alRight:"Phải",tipsT:"💡 Mẹo nhập liệu & In ấn",close:"Đóng",bLink:"Đường phụ thuộc",pfRtHint:"Bôi đen chữ trong ô rồi nhấn Ctrl+B / Ctrl+I / Ctrl+U — định dạng áp riêng đoạn đó (như Header).",
  gNwt:"Ngày nghỉ (Non-working)",nwDrawL:"Vẽ:",nwBehind:"Sau thanh công việc",nwFront:"Trước thanh công việc",nwNone:"Không vẽ",nwSolid:"Đặc",nwHatch:"Sọc chéo ▨",
  btnGl:"▤ Kẻ lưới (Gridlines)…",gGl:"Kẻ lưới",glTitle:"▤ Kẻ lưới vùng Gantt",glLine:"Đường cần chỉnh:",
  glRows:"Kẻ ngang hàng (Gantt Rows)",glBars:"Kẻ giữa hàng (Bar Rows)",glCols:"Kẻ dọc cột (Tier Column)",glNone:"(Không kẻ)",
@@ -7733,6 +7786,7 @@ window.APP = {
   clearCellContents, insertTaskAt, doUndo, doRedo, commitHistory, totalCols, colKeyAt,
   getColW, projectLabel, printInfoLine,
   APPVER, fmtVer, appVersionLabel, checkUpdate, showDesktopUpdateModal, handleDesktopUpdateEvent,
+  offerUpdate, showUpdRibbonBtn, downloadDesktopUpdate,
   hasPST, pstOrdinal, idxOfId, setProjectSummary, children, insertTasksAt, setScheduleMode, moveBlockTo, moveColumn, toggleCollapse, computeHidden, colIdxOf, autoRowH, barTextFS,
   colLabelOf, autoFitCol, autoFitRows, textPx, paintColSel, fmtStyleCss,
   switchProject, newProject, duplicateProject, deleteProject, loadIndex, saveIndex, prjKey, updateFileLabel, openExternalData,

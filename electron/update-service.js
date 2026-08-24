@@ -28,9 +28,11 @@ function createUpdateService(notify) {
     };
   }
 
-  // Tự tải ngay khi phát hiện bản mới — người dùng không phải bấm gì.
-  autoUpdater.autoDownload = true;
-  // Lưới an toàn: nếu chưa kịp cài lúc đang chạy thì cài khi thoát app.
+  // KHÔNG tự tải. Thấy bản mới thì chỉ báo về giao diện để hỏi người dùng;
+  // chỉ khi họ bấm "Cập nhật" mới gọi downloadUpdate(). Tải ngầm không hỏi
+  // làm người dùng mất băng thông và ngạc nhiên khi app tự khởi động lại.
+  autoUpdater.autoDownload = false;
+  // Lưới an toàn: đã tải xong mà chưa kịp cài thì cài lúc thoát app.
   autoUpdater.autoInstallOnAppQuit = true;
 
   autoUpdater.on("update-available", info => emit("available", { version: info && info.version }));

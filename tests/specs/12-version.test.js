@@ -64,19 +64,38 @@ exports.run = function (t) {
     t.ok(!!row, "nằm trong hàng ribbon trên cùng");
     t.eq(row.lastElementChild.id, "appVer", "là phần tử ngoài cùng bên phải của hàng");
 
-    t.case("sự kiện 'có bản mới' ghi nhận phiên bản và không chặn màn hình");
+    t.case("sự kiện 'có bản mới' hỏi người dùng trước, không tự tải");
     APP.handleDesktopUpdateEvent({ type: "available", version: "26.8.2" });
-    t.eq(APP.__dom.window._updVer, "26.8.2", "nhớ phiên bản đang tải");
+    t.eq(APP.__dom.window._updVer, "26.8.2", "nhớ phiên bản mới");
     t.eq(APP.__dom.window._desktopUpdateAvailable, true);
-    t.eq(doc.querySelector("#updOverlay").style.display, "none",
-      "luồng tự động KHÔNG bật hộp thoại");
+    t.eq(doc.querySelector("#updOverlay").style.display, "flex",
+      "phải bật hộp thoại để hỏi — app không được tự tải rồi tự khởi động lại");
 
-    t.case("hộp thoại thủ công hiện nút cập nhật trên ribbon");
-    APP.showDesktopUpdateModal("26.8.2");
+    t.case("nút cập nhật trên ribbon hiện nhãn Ver YY.MM.NNN");
     const btn = doc.querySelector("#updBtn");
     t.ok(btn, "nút #updBtn tồn tại trong DOM");
     t.eq(btn.style.display, "inline-block");
-    t.ok(btn.textContent.indexOf("26.8.2") >= 0, "nút hiện số phiên bản: " + btn.textContent);
-    t.eq(doc.querySelector("#updOverlay").style.display, "flex", "hộp thoại mở khi gọi tay");
+    t.ok(btn.textContent.indexOf("Ver 26.08.002") >= 0,
+      "nút hiện nhãn đã định dạng, không phải semver thô: " + btn.textContent);
+
+    t.case("chọn 'Để sau' thì lần kiểm tra định kỳ sau không hỏi lại bản đó");
+    doc.querySelector("#updLater").onclick();
+    t.eq(doc.querySelector("#updOverlay").style.display, "none", "hộp thoại đóng");
+    t.eq(APP.__dom.window._updDismissed, "26.8.2", "nhớ bản đã hoãn");
+    APP.handleDesktopUpdateEvent({ type: "available", version: "26.8.2" });
+    t.eq(doc.querySelector("#updOverlay").style.display, "none",
+      "cùng phiên bản → không bật lại hộp thoại");
+    t.eq(btn.style.display, "inline-block", "nhưng nút ⬆ vẫn còn để quay lại cập nhật");
+
+    t.case("có bản mới HƠN NỮA thì vẫn hỏi");
+    APP.handleDesktopUpdateEvent({ type: "available", version: "26.9.1" });
+    t.eq(doc.querySelector("#updOverlay").style.display, "flex", "bản khác → hỏi lại");
+    t.ok(btn.textContent.indexOf("Ver 26.09.001") >= 0, "nút cập nhật theo bản mới nhất");
+
+    t.case("mở hộp thoại tay thì bỏ qua mọi lần hoãn trước đó");
+    doc.querySelector("#updLater").onclick();
+    APP.offerUpdate("26.9.1", true);
+    t.eq(doc.querySelector("#updOverlay").style.display, "flex",
+      "bấm Kiểm tra cập nhật là luôn mở, dù đã hoãn");
   } finally { closeApp(APP); }
 };

@@ -40,10 +40,14 @@ exports.run = function (t) {
     t.ok(svc.indexOf(fn) >= 0, "update-service có " + fn);
   });
 
-  t.case("TỰ ĐỘNG: tải ngay khi có bản mới, người dùng không phải bấm gì");
-  t.ok(/autoUpdater\.autoDownload\s*=\s*true/.test(svc), "autoDownload phải bật");
+  t.case("HỎI TRƯỚC: không tự tải, chờ người dùng bấm Cập nhật");
+  t.ok(/autoUpdater\.autoDownload\s*=\s*false/.test(svc),
+    "autoDownload phải TẮT — tải ngầm không hỏi làm người dùng mất băng thông " +
+    "và ngạc nhiên khi app tự khởi động lại");
   t.ok(/autoInstallOnAppQuit\s*=\s*true/.test(svc),
-    "lưới an toàn: chưa kịp cài lúc đang chạy thì cài khi thoát app");
+    "lưới an toàn: đã tải xong mà chưa kịp cài thì cài lúc thoát app");
+  t.ok(svc.indexOf("downloadUpdate") >= 0,
+    "vẫn phải có downloadUpdate() để gọi khi người dùng đồng ý");
 
   t.case("cài đặt im lặng rồi tự mở lại app");
   const qi = svc.match(/autoUpdater\.quitAndInstall\(([^)]*)\)/);
@@ -78,9 +82,30 @@ exports.run = function (t) {
   t.ok(ms >= 30 * 60 * 1000, "chu kỳ không được quá dày (" + Math.round(ms / 60000) + " phút)");
   t.ok(ms <= 24 * 60 * 60 * 1000, "chu kỳ không được quá thưa");
 
-  t.case("kiểm tra tự động KHÔNG chặn màn hình bằng hộp thoại");
-  t.ok(html.indexOf("if (manual) showDesktopUpdateModal(") >= 0,
-    "hộp thoại chỉ mở khi người dùng tự bấm Kiểm tra cập nhật");
+  t.case("mọi đường báo 'có bản mới' đều đi qua đúng một cửa");
+  t.ok(html.indexOf("function offerUpdate(") >= 0, "có hàm offerUpdate");
+  const off = html.slice(html.indexOf("function offerUpdate("));
+  const offBody = off.slice(0, off.indexOf("\n}") + 2);
+  t.ok(offBody.indexOf("_updDismissed") >= 0,
+    "chọn 'Để sau' rồi thì lần kiểm tra định kỳ sau không bật lại hộp thoại");
+  t.ok(offBody.indexOf("_updOffered") >= 0,
+    "checkForUpdates() và sự kiện update-available cùng báo một bản — chỉ hỏi một lần");
+  t.ok(offBody.indexOf("showUpdRibbonBtn") >= 0,
+    "dù hoãn thì nút ⬆ trên ribbon vẫn còn để quay lại cập nhật");
+  /* Cả hai nguồn đều gọi offerUpdate, không nguồn nào tự mở hộp thoại */
+  t.ok(/offerUpdate\(ver, !!manual\)/.test(html), "checkUpdate gọi offerUpdate");
+  t.ok(/offerUpdate\(ev\.version \|\| "", false\)/.test(html),
+    "sự kiện update-available gọi offerUpdate");
+  t.ok(html.indexOf("if (manual) showDesktopUpdateModal(") < 0,
+    "không còn nhánh cũ chỉ hỏi khi bấm tay");
+
+  t.case("bấm Cập nhật rồi thì chạy một mạch, không bắt bấm thêm");
+  const dl = html.slice(html.indexOf("async function downloadDesktopUpdate("));
+  const dlBody = dl.slice(0, dl.indexOf("\nfunction handleDesktopUpdateEvent"));
+  t.ok(dlBody.indexOf("window.desktop.downloadUpdate()") >= 0, "gọi tải");
+  t.ok(dlBody.indexOf("autoInstallDesktopUpdate(") >= 0,
+    "tải xong là cài luôn, không hiện nút 'Khởi động lại' bắt bấm lần nữa");
+  t.ok(dlBody.indexOf("Khởi động lại & cài đặt") < 0, "không còn nút bấm thêm");
 
   t.case("workflow phát hành chạy theo tag, không theo mỗi lần push main");
   const rel = yaml.load(read(".github/workflows/release.yml"));
