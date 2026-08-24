@@ -81,6 +81,14 @@ Ngoài GitHub còn một bản sao trên Drive cho mạng nội bộ chặn GitH
 sao **thủ công**, không tự theo GitHub — mỗi lần phát hành phải tải file mới rồi
 đưa lên Drive.
 
+Google Drive và Chrome hay chặn hoặc cảnh báo khi tải thẳng file `.exe`, nên
+**nén bộ cài lại trước khi tải lên Drive**. Dùng **`.zip`**, không dùng `.rar`:
+Windows mở `.zip` sẵn có, còn `.rar` thì Windows 10 phải cài thêm WinRAR/7-Zip.
+
+Bên trong file nén phải là **đúng một file** `Tien-do-thi-cong-Setup.exe` (~99 MB).
+Nếu giải nén ra một thư mục đầy `.dll`, `locales`, `resources` thì đó là
+`win-unpacked` — bản app chạy thẳng, **không phải bộ cài**, đừng phát bản đó.
+
 Muốn **giữ nguyên link Drive** thì phải dùng đúng thao tác:
 
 > Chuột phải file trên Drive → **Quản lý phiên bản** → **Tải bản mới lên**
