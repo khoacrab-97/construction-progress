@@ -75,6 +75,23 @@ https://github.com/khoacrab-97/construction-progress/releases/latest/download/Ti
 Mỗi lần phát hành, workflow tạo thêm một bản sao installer mang tên cố định
 `Tien-do-thi-cong-Setup.exe` nên link trên luôn trả về bản mới nhất.
 
+### Bản sao trên Google Drive
+
+Ngoài GitHub còn một bản sao trên Drive cho mạng nội bộ chặn GitHub. Đây là bản
+sao **thủ công**, không tự theo GitHub — mỗi lần phát hành phải tải file mới rồi
+đưa lên Drive.
+
+Muốn **giữ nguyên link Drive** thì phải dùng đúng thao tác:
+
+> Chuột phải file trên Drive → **Quản lý phiên bản** → **Tải bản mới lên**
+
+Xoá file cũ rồi upload file mới sẽ làm Drive cấp ID khác → **link đổi** → mọi chỗ
+đã gửi link đều hỏng.
+
+Không cần vội: nếu bản trên Drive đang cũ, người tải về cài xong mở app là **tự
+cập nhật lên bản mới nhất** trong vài giây. Bản Drive chỉ là hạt giống để cài lần
+đầu, không phải nguồn chân lý.
+
 ### Link tải của từng bản
 
 Mỗi release có ghi chú kèm sẵn link tải trực tiếp của đúng bản đó. Khuôn chung:

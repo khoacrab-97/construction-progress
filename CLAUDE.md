@@ -384,6 +384,7 @@ Khi bật, **Size % và cuộn vô hạn không có tác dụng** (mâu thuẫn 
 |10|Auto fit **gom ngày theo cột**, không nén pixel|Nén pixel làm nhãn chồng nhau, không đọc được|
 |11|Header/Footer bỏ định dạng mức-cả-ô|Lớp cũ đè lên định dạng từng đoạn, gây "tự bold"|
 |12|Chụp ảnh SVG làm chuẩn trước khi sửa lõi vẽ|Cách duy nhất bắt được lỗi vẽ tinh vi; đã cứu vụ mất vạch "hôm nay"|
+|13|Phát cho **người cài mới** qua bản sao trên Google Drive, cập nhật thủ công|Một số mạng nội bộ nhà thầu chặn GitHub. Bản Drive cũ **không nguy hiểm**: cài xong app tự cập nhật lên bản mới nhất, chỉ tốn thêm một lượt tải|
 
 \---
 
