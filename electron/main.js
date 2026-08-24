@@ -165,7 +165,10 @@ if (!gotSingleInstanceLock) {
   });
 
   app.whenReady().then(() => {
-    updateService = createUpdateService();
+    updateService = createUpdateService(payload => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      try { mainWindow.webContents.send("updates:event", payload); } catch (error) { }
+    });
     createWindow();
 
     app.on("activate", () => {

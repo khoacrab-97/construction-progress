@@ -1,6 +1,6 @@
 # Construction Progress — Tài liệu bàn giao dự án
 
-> \*\*Phiên bản tài liệu:\*\* ứng với `Tiến độ thi công Ver.0826.24.001`
+> \*\*Phiên bản tài liệu:\*\* ứng với `Tiến độ thi công Ver.0826.24.004`
 > \*\*Đọc file này trước khi sửa bất cứ thứ gì.\*\* Mục 13 là ràng buộc bắt buộc.
 
 \---
@@ -138,14 +138,17 @@ Bản desktop — kênh chính
   index.html ──IPC──▶ main.js ──▶ electron-updater
                                    ──GET──▶ Releases/latest.yml  (có bản mới?)
                                    ──GET──▶ .exe + .blockmap     (tải delta)
+  Tải: autoDownload = true → tải ngầm ngay khi thấy bản mới
   Cài: quitAndInstall(true, true) → NSIS chạy với /S, cài đè rồi tự mở lại app
+  Sự kiện available/progress/downloaded đẩy về giao diện qua kênh updates:event
 
 Bản mở bằng trình duyệt — dự phòng, CHỈ báo tin, không cài được
   index.html ──GET──▶ GAS /exec → JSON {ver, url, note}
 ```
 
 Kiểm tra: 3 giây sau khi mở app, rồi lặp lại mỗi 4 giờ (`UPDATE_EVERY_MS`), và
-bất cứ lúc nào qua **Trợ giúp → 🔄 Kiểm tra cập nhật**. Không tự tải ngầm.
+bất cứ lúc nào qua **Trợ giúp → 🔄 Kiểm tra cập nhật**. Toàn bộ tải – cài – mở lại
+chạy tự động; chỉ dừng hỏi khi còn thay đổi chưa lưu ra file.
 
 **Phát hành:** đẩy tag `vX.Y.Z` → `.github/workflows/release.yml` chạy test, build
 installer, tạo GitHub Release. Push thường lên `main` chỉ chạy `ci.yml` (test).
@@ -408,7 +411,7 @@ thả, token tự điền, xem trước kiểu MS Project, chia trang theo chi�
 **Hạ tầng** — tự cập nhật qua GAS, hộp thoại báo bản mới, nhắc lưu kiểu MS Project,
 song ngữ, biểu đồ nhân lực.
 
-**Kiểm thử** — **21 bộ test, 681 assertion**, chạy trên jsdom, nằm trong `tests/`.
+**Kiểm thử** — **21 bộ test, 703 assertion**, chạy trên jsdom, nằm trong `tests/`.
 Chạy bằng `npm test`. Xem `tests/README.md` để biết cách viết thêm và quy trình
 chụp ảnh SVG.
 
@@ -514,7 +517,8 @@ thì nói rõ chưa kiểm chứng được.
 |`electron/preload.js`|Cầu `contextBridge` → `window.desktop`|
 |`electron/update-service.js`|Bọc `electron-updater` — kiểm tra / tải / cài bản mới|
 |`electron/launch.js`|Điểm vào `npm start`|
-|`assets/icon.ico`|Biểu tượng cho exe và installer|
+|`assets/icon.ico`|Biểu tượng cho exe và installer — sinh bằng `tools/make-icon.js`|
+|`tools/make-icon.js`|Vẽ icon Gantt nhiều kích thước (16→256) ra `assets/icon.ico`|
 |`.github/workflows/release.yml`|Build + phát hành khi đẩy tag `vX.Y.Z`|
 |`.github/workflows/ci.yml`|Chạy `npm test` khi push lên `main` / mở PR|
 |`CapNhat-GAS-Code.gs`|Mã Google Apps Script — kênh dự phòng cho bản trình duyệt, **chỉ tác giả giữ**|

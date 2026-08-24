@@ -1466,7 +1466,7 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
 /* ============================================================
    TIẾN ĐỘ THI CÔNG — single-file Gantt scheduler
    ============================================================ */
-let APPVER = "Tiến độ thi công Ver.0826.24.002"; // Nhãn phiên bản dự phòng cho bản trình duyệt.
+let APPVER = "Tiến độ thi công Ver.0826.24.004"; // Nhãn phiên bản dự phòng cho bản trình duyệt.
 const DAY = 86400000;
 const $ = s => document.querySelector(s);
 const IS_DESKTOP = !!(window.desktop && window.desktop.isElectron);
@@ -7101,6 +7101,9 @@ async function initDesktopIntegration() {
     syncAppVersionLabels();
     updateWindowTitle();
   } catch (e) { }
+  if (window.desktop.onUpdateEvent) {
+    window.desktop.onUpdateEvent(ev => handleDesktopUpdateEvent(ev));
+  }
   if (window.desktop.onOpenFileRequest) {
     window.desktop.onOpenFileRequest(fileInfo => { openDesktopFileRequest(fileInfo); });
   }
@@ -7195,6 +7198,57 @@ async function downloadDesktopUpdate() {
     }
   }
 }
+function handleDesktopUpdateEvent(ev) {
+  if (!ev || !ev.type) return;
+  if (ev.type === "available") {
+    window._desktopUpdateAvailable = true;
+    window._updVer = ev.version || "";
+    toast("Có bản mới " + (ev.version || "") + " — đang tải trong nền…");
+    return;
+  }
+  if (ev.type === "progress") {
+    // Chỉ báo ở mốc 25/50/75% để không spam thông báo suốt lúc tải
+    const p = ev.percent | 0;
+    if (p && p % 25 === 0 && p < 100 && window._updLastPct !== p) {
+      window._updLastPct = p;
+      toast("Đang tải bản cập nhật… " + p + "%");
+    }
+    return;
+  }
+  if (ev.type === "downloaded") {
+    window._desktopUpdateDownloaded = true;
+    autoInstallDesktopUpdate(ev.version || window._updVer || "");
+    return;
+  }
+  // "error" / "not-available": im lặng ở luồng tự động, tránh làm phiền khi mất mạng
+}
+
+/* Tải xong → cài và mở lại luôn. Chỉ dừng lại hỏi khi còn thay đổi CHƯA LƯU:
+   thoát ngang lúc đó sẽ làm mất tiến độ người dùng đang nhập. */
+async function autoInstallDesktopUpdate(ver) {
+  if (window._autoInstalling) return;
+  window._autoInstalling = true;
+  try {
+    if (isDiskDirty()) {
+      const ok = window.guardUnsavedAsync ? await window.guardUnsavedAsync() : true;
+      if (!ok) {
+        // Người dùng bấm Hủy → hoãn. electron-updater vẫn cài khi thoát app.
+        window._autoInstalling = false;
+        toast("Đã tải bản " + ver + " — sẽ cài khi bạn đóng ứng dụng");
+        return;
+      }
+    }
+    $("#updMsg").textContent = "Đã tải xong bản " + ver + ". Đang cài đặt và khởi động lại…";
+    $("#updFoot1").style.display = "none";
+    $("#updFoot2").style.display = "";
+    $("#updOverlay").style.display = "flex";
+    window._allowClose = true; // đang cài có chủ đích — không hỏi lại lúc đóng
+    setTimeout(() => { try { window.desktop.quitAndInstall(); } catch (e) { } }, 1200);
+  } catch (e) {
+    window._autoInstalling = false;
+  }
+}
+
 function checkUpdate(manual) {
   if (window.desktop && window.desktop.isElectron) {
     window.desktop.checkForUpdates()
@@ -7202,9 +7256,12 @@ function checkUpdate(manual) {
         if (!res) throw new Error("Không có kết quả cập nhật");
         if ((res.status === "available" || res.status === "ok") && res.updateInfo) {
           const ver = res.updateInfo.version || "";
-          if (!manual && ver && window._updDismissed === ver) return; // đã bấm "Để sau"
-          showDesktopUpdateModal(ver || "bản cập nhật");
-          if (manual) toast(ver ? "Có bản mới: " + ver : "Có bản cập nhật mới");
+          window._desktopUpdateAvailable = true;
+          window._updVer = ver;
+          // Tự động: KHÔNG chặn màn hình. Bản mới tải ngầm, cài xong tự khởi động lại.
+          // Chỉ khi người dùng tự bấm "Kiểm tra cập nhật" mới mở hộp thoại.
+          if (manual) showDesktopUpdateModal(ver || "bản cập nhật");
+          else toast(ver ? ("Có bản mới " + ver + " — đang tải trong nền…") : "Đang tải bản cập nhật…");
           return;
         }
         if (manual) {

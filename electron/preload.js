@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 const openFileRequestCallbacks = new Set();
 const closeRequestCallbacks = new Set();
+const updateEventCallbacks = new Set();
 
 ipcRenderer.on("project:open-file-request", (_event, payload) => {
   openFileRequestCallbacks.forEach((callback) => callback(payload));
@@ -11,6 +12,10 @@ ipcRenderer.on("project:open-file-request", (_event, payload) => {
 
 ipcRenderer.on("app:close-request", () => {
   closeRequestCallbacks.forEach((callback) => callback());
+});
+
+ipcRenderer.on("updates:event", (_event, payload) => {
+  updateEventCallbacks.forEach((callback) => callback(payload));
 });
 
 contextBridge.exposeInMainWorld("desktop", {
@@ -27,6 +32,11 @@ contextBridge.exposeInMainWorld("desktop", {
   checkForUpdates: () => ipcRenderer.invoke("updates:check"),
   downloadUpdate: () => ipcRenderer.invoke("updates:download"),
   quitAndInstall: () => ipcRenderer.invoke("updates:quit-and-install"),
+  onUpdateEvent: (callback) => {
+    if (typeof callback !== "function") return () => {};
+    updateEventCallbacks.add(callback);
+    return () => updateEventCallbacks.delete(callback);
+  },
   onOpenFileRequest: (callback) => {
     if (typeof callback !== "function") return () => {};
     openFileRequestCallbacks.add(callback);

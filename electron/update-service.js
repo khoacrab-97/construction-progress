@@ -4,7 +4,12 @@ const { app } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 
-function createUpdateService() {
+function createUpdateService(notify) {
+  // notify: main.js truyền vào để đẩy sự kiện xuống giao diện (kênh updates:event)
+  const emit = (type, payload) => {
+    if (typeof notify !== "function") return;
+    try { notify(Object.assign({ type }, payload || {})); } catch (error) { }
+  };
   let autoUpdater = null;
   let lastCheckResult = null;
   let updateDownloaded = false;
@@ -23,10 +28,19 @@ function createUpdateService() {
     };
   }
 
-  autoUpdater.autoDownload = false;
+  // Tự tải ngay khi phát hiện bản mới — người dùng không phải bấm gì.
+  autoUpdater.autoDownload = true;
+  // Lưới an toàn: nếu chưa kịp cài lúc đang chạy thì cài khi thoát app.
+  autoUpdater.autoInstallOnAppQuit = true;
 
-  autoUpdater.on("update-downloaded", () => {
+  autoUpdater.on("update-available", info => emit("available", { version: info && info.version }));
+  autoUpdater.on("update-not-available", () => emit("not-available"));
+  autoUpdater.on("download-progress", p => emit("progress", { percent: Math.round((p && p.percent) || 0) }));
+  autoUpdater.on("error", err => emit("error", { message: String((err && err.message) || err || "") }));
+
+  autoUpdater.on("update-downloaded", info => {
     updateDownloaded = true;
+    emit("downloaded", { version: info && info.version });
   });
 
   function readableUpdateError(error) {
@@ -98,6 +112,8 @@ function createUpdateService() {
     async downloadUpdate() {
       const inactive = inactiveStatus();
       if (inactive) return inactive;
+
+      if (updateDownloaded) return { status: "downloaded" };
 
       if (!lastCheckResult || !lastCheckResult.isUpdateAvailable) {
         return {

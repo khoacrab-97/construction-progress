@@ -107,9 +107,15 @@ jobs:
             }
           }
 
+          # Bản sao TÊN CỐ ĐỊNH: để link tải cho người cài mới không đổi theo phiên bản.
+          # https://github.com/<owner>/<repo>/releases/latest/download/Tien-do-thi-cong-Setup.exe
+          $stable = "dist/Tien-do-thi-cong-Setup.exe"
+          Copy-Item $installer $stable -Force
+
           "installer=$installer" >> $env:GITHUB_OUTPUT
           "blockmap=$blockmap" >> $env:GITHUB_OUTPUT
           "latest=$latest" >> $env:GITHUB_OUTPUT
+          "stable=$stable" >> $env:GITHUB_OUTPUT
 
           Get-Item $installer, $blockmap, $latest | ForEach-Object {
             Write-Host "Đã tạo $($_.Name) ($($_.Length) bytes)"
@@ -125,10 +131,11 @@ jobs:
           $installer = "${{ steps.assets.outputs.installer }}"
           $blockmap = "${{ steps.assets.outputs.blockmap }}"
           $latest = "${{ steps.assets.outputs.latest }}"
+          $stable = "${{ steps.assets.outputs.stable }}"
 
           gh release view $tag --repo $repo *> $null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $tag $installer $blockmap $latest `
+            gh release create $tag $installer $blockmap $latest $stable `
               --repo $repo `
               --verify-tag `
               --title $tag `
@@ -138,7 +145,7 @@ jobs:
               throw "Không tạo được GitHub Release $tag."
             }
           } else {
-            gh release upload $tag $installer $blockmap $latest --repo $repo --clobber
+            gh release upload $tag $installer $blockmap $latest $stable --repo $repo --clobber
             if ($LASTEXITCODE -ne 0) {
               throw "Không upload được asset lên GitHub Release $tag."
             }
@@ -155,7 +162,8 @@ jobs:
           $expectedAssets = @(
             "Tien-do-thi-cong-Cai-dat-$version.exe",
             "Tien-do-thi-cong-Cai-dat-$version.exe.blockmap",
-            "latest.yml"
+            "latest.yml",
+            "Tien-do-thi-cong-Setup.exe"
           )
 
           $release = gh release view $tag --repo $repo --json assets | ConvertFrom-Json
@@ -176,7 +184,10 @@ jobs:
         run: |
           "Đã phát hành release ${{ steps.version.outputs.tag }}" >> $env:GITHUB_STEP_SUMMARY
           "" >> $env:GITHUB_STEP_SUMMARY
-          "Trang tải cho người dùng mới:" >> $env:GITHUB_STEP_SUMMARY
+          "Link tải CỐ ĐỊNH cho người cài mới (không đổi theo phiên bản):" >> $env:GITHUB_STEP_SUMMARY
+          "https://github.com/${{ github.repository }}/releases/latest/download/Tien-do-thi-cong-Setup.exe" >> $env:GITHUB_STEP_SUMMARY
+          "" >> $env:GITHUB_STEP_SUMMARY
+          "Trang tải:" >> $env:GITHUB_STEP_SUMMARY
           "https://github.com/${{ github.repository }}/releases/latest" >> $env:GITHUB_STEP_SUMMARY
           "" >> $env:GITHUB_STEP_SUMMARY
           Get-ChildItem dist -File | ForEach-Object {

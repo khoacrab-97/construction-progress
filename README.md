@@ -63,6 +63,17 @@ tính năng tự cập nhật ngừng hoạt động.
 
 ## Người Dùng Mới Tải Ở Đâu
 
+Link tải **cố định**, không đổi theo phiên bản — dán vào Zalo/email một lần là xong:
+
+```text
+https://github.com/khoacrab-97/construction-progress/releases/latest/download/Tien-do-thi-cong-Setup.exe
+```
+
+Mỗi lần phát hành, workflow tạo thêm một bản sao installer mang tên cố định
+`Tien-do-thi-cong-Setup.exe` nên link trên luôn trả về bản mới nhất.
+
+Trang tải (xem ghi chú phát hành, các phiên bản cũ):
+
 ```text
 https://github.com/khoacrab-97/construction-progress/releases/latest
 ```
@@ -100,16 +111,17 @@ Installer hiện chưa được ký mã. Installer Windows chưa ký có thể h
 Bản đã đóng gói dùng `electron-updater` và GitHub Releases làm kênh cập nhật.
 Vì bản Windows hiện chưa ký mã, `verifyUpdateCodeSignature` đang tắt cho đến khi cấu hình ký mã.
 
-Luồng trên máy người dùng:
+Cập nhật chạy **hoàn toàn tự động** — người dùng không phải bấm gì:
 
 1. Mở app → sau 3 giây tự kiểm tra, sau đó kiểm tra lại mỗi 4 giờ.
-2. Có bản mới → hiện hộp thoại và nút ⬆ trên ribbon. Bấm **Để sau** thì không bị
-   nhắc lại phiên bản đó cho tới khi mở lại app.
-3. Bấm **Cập nhật** → tải installer (không tự tải ngầm, luôn hỏi trước).
-4. Tải xong → bấm **Khởi động lại & cài đặt** → cài im lặng trong nền rồi tự mở
-   lại app. Người dùng không thấy cửa sổ trình cài đặt nào.
+2. Có bản mới → **tự tải ngầm**, chỉ hiện thông báo nhỏ, không chặn màn hình.
+3. Tải xong → **tự cài im lặng rồi tự mở lại app**.
 
-Kiểm tra thủ công: **Trợ giúp → 🔄 Kiểm tra cập nhật**.
+Ngoại lệ duy nhất: nếu đang có thay đổi **chưa lưu ra file**, app hỏi lưu trước
+khi khởi động lại. Bấm Hủy thì bản mới được cài lúc đóng app
+(`autoInstallOnAppQuit`), không mất gì.
+
+Kiểm tra thủ công: **Trợ giúp → 🔄 Kiểm tra cập nhật** — lúc này mới hiện hộp thoại.
 
 Tự cập nhật chỉ chạy trong bản đã đóng gói. Chạy `npm run dev` sẽ luôn báo
 "Tự động cập nhật chỉ chạy trong bản đã đóng gói" — đó là hành vi đúng.
