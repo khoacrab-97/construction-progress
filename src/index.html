@@ -314,6 +314,34 @@ td.center input{text-align:center}
 .wk label:has(input:checked){background:#e2eefb;border-color:var(--accent)}
 textarea{width:100%;height:90px;border:1px solid var(--line-strong);border-radius:5px;padding:6px;font-size:12px;font-family:Consolas,monospace}
 .modal .foot{padding:10px 14px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+/* Hộp thoại hệ thống — nhắc lưu, hỏi, đặt tên, phục hồi. Dựng theo task
+   dialog của Windows: biểu tượng ở cột trái, dòng chỉ dẫn đậm, dòng giải
+   thích nhạt, dải nút riêng ở dưới. Dùng Segoe UI chứ không dùng font bảng
+   (Times New Roman) — đây là giao diện hệ thống, không phải nội dung hồ sơ. */
+.dlg{background:#fff;border:1px solid var(--line-strong);border-radius:10px;
+  width:470px;max-width:94vw;max-height:90vh;overflow:auto;
+  box-shadow:0 18px 44px rgba(16,34,50,.28), 0 2px 6px rgba(16,34,50,.14);
+  font-family:"Segoe UI",Arial,sans-serif}
+.dlg .dhead{padding:13px 24px;font-size:14px;font-weight:600;color:var(--ink);
+  background:var(--paper);border-bottom:1px solid var(--line)}
+.dlg .dbody{display:grid;grid-template-columns:auto 1fr;gap:16px;padding:22px 24px 18px}
+.dlg .dicon{font-size:30px;line-height:1}
+.dlg .dmain{font-size:14.5px;font-weight:600;color:var(--ink);line-height:1.45}
+.dlg .dsub{font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-top:8px}
+.dlg .dfoot{display:flex;justify-content:flex-end;gap:8px;padding:13px 24px;
+  background:var(--paper);border-top:1px solid var(--line)}
+.dlg .dfoot button{min-width:98px;padding:7px 14px;font-size:13px;border-radius:6px}
+.dlg .dfoot button.primary{box-shadow:0 1px 2px rgba(20,79,128,.35)}
+.dlg input[type=text]{width:100%;margin-top:12px;border:1px solid var(--line-strong);
+  border-radius:6px;padding:8px 10px;font-size:13.5px;color:var(--ink);
+  font-family:"Segoe UI",Arial,sans-serif}
+.dlg input[type=text]:focus{outline:none;border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(31,111,178,.16)}
+.recRow{display:flex;gap:10px;align-items:center;border:1px solid var(--line);
+  border-radius:8px;padding:9px 11px;background:#fff}
+.recRow:hover{border-color:var(--line-strong);background:#fbfcfd}
+.recRow .rn{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.recRow .rs{font-size:11.5px;color:var(--ink-soft);margin-top:2px}
 .hint{font-size:11px;color:var(--ink-soft);line-height:1.45}
 #msg{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 16px;border-radius:6px;font-size:12.5px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:99}
 #msg.show{opacity:.95}
@@ -893,14 +921,16 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
 </div>
 
 <!-- Xác nhận lưu thay đổi (kiểu MS Project) -->
-<div id="svOverlay" style="position:fixed;inset:0;background:rgba(20,30,40,.45);display:none;align-items:center;justify-content:center;z-index:70">
-  <div class="modal" style="width:420px">
-    <h3>Construction Progress</h3>
-    <div class="body" style="display:flex;gap:12px;align-items:flex-start">
-      <span style="font-size:26px;line-height:1">⚠️</span>
-      <div id="svMsg" style="font-size:13px;line-height:1.6;padding-top:3px"></div>
+<div id="svOverlay" style="position:fixed;inset:0;background:rgba(16,34,50,.42);display:none;align-items:center;justify-content:center;z-index:70">
+  <div class="dlg">
+    <div class="dbody">
+      <div class="dicon">💾</div>
+      <div>
+        <div class="dmain" id="svMsg"></div>
+        <div class="dsub" id="svSub"></div>
+      </div>
     </div>
-    <div class="foot">
+    <div class="dfoot">
       <button class="primary" id="svYes" data-i18n="svYes">Có</button>
       <button id="svNo" data-i18n="svNo">Không</button>
       <button id="svCancel" data-i18n="svCancel">Hủy</button>
@@ -909,14 +939,16 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
 </div>
 
 <!-- Hộp hỏi Có/Không -->
-<div id="ask2Overlay" style="position:fixed;inset:0;background:rgba(20,30,40,.45);display:none;align-items:center;justify-content:center;z-index:72">
-  <div class="modal" style="width:440px">
-    <h3>Construction Progress</h3>
-    <div class="body" style="display:flex;gap:12px;align-items:flex-start">
-      <span style="font-size:26px;line-height:1">🗂</span>
-      <div id="ask2Msg" style="font-size:13px;line-height:1.6;padding-top:3px"></div>
+<div id="ask2Overlay" style="position:fixed;inset:0;background:rgba(16,34,50,.42);display:none;align-items:center;justify-content:center;z-index:72">
+  <div class="dlg">
+    <div class="dbody">
+      <div class="dicon" id="ask2Icon">🗂</div>
+      <div>
+        <div class="dmain" id="ask2Msg"></div>
+        <div class="dsub" id="ask2Sub"></div>
+      </div>
     </div>
-    <div class="foot">
+    <div class="dfoot">
       <button class="primary" id="ask2Yes" data-i18n="svYes">Có</button>
       <button id="ask2No" data-i18n="svNo">Không</button>
     </div>
@@ -924,14 +956,17 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
 </div>
 
 <!-- Hộp đặt tên dự án khi cất vào Dự án của tôi -->
-<div id="nameOverlay" style="position:fixed;inset:0;background:rgba(20,30,40,.45);display:none;align-items:center;justify-content:center;z-index:73">
-  <div class="modal" style="width:440px">
-    <h3 data-i18n="nmT">Đặt tên dự án</h3>
-    <div class="body">
-      <div class="hint" data-i18n="nmMsg">Dự án sẽ được cất trong 🗂 Dự án của tôi với tên này.</div>
-      <input type="text" id="nameInp" style="width:100%;margin-top:8px;box-sizing:border-box">
+<div id="nameOverlay" style="position:fixed;inset:0;background:rgba(16,34,50,.42);display:none;align-items:center;justify-content:center;z-index:73">
+  <div class="dlg">
+    <div class="dbody">
+      <div class="dicon">✏️</div>
+      <div>
+        <div class="dmain" data-i18n="nmT">Đặt tên dự án</div>
+        <div class="dsub" data-i18n="nmMsg">Dự án sẽ được cất trong 🗂 Dự án của tôi với tên này.</div>
+        <input type="text" id="nameInp">
+      </div>
     </div>
-    <div class="foot">
+    <div class="dfoot">
       <button class="primary" id="nameOk">OK</button>
       <button id="nameCancel" data-i18n="cancel">Hủy</button>
     </div>
@@ -939,15 +974,16 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
 </div>
 
 <!-- Hộp phục hồi sau khi app đóng bất thường -->
-<div id="recOverlay" style="position:fixed;inset:0;background:rgba(20,30,40,.45);display:none;align-items:center;justify-content:center;z-index:74">
-  <div class="modal" style="width:620px">
-    <h3 data-i18n="recT">🛟 Phục hồi dự án chưa lưu</h3>
-    <div class="body">
-      <div class="hint" data-i18n="recHint">Lần trước app đóng bất thường. Những file dưới đây còn thay đổi chưa kịp ghi ra đĩa.</div>
-      <div id="recList" style="display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow:auto;margin-top:8px"></div>
+<div id="recOverlay" style="position:fixed;inset:0;background:rgba(16,34,50,.42);display:none;align-items:center;justify-content:center;z-index:74">
+  <div class="dlg" style="width:620px">
+    <div class="dhead" data-i18n="recT">🛟 Phục hồi dự án chưa lưu</div>
+    <div class="dbody" style="grid-template-columns:1fr">
+      <div>
+        <div class="dsub" style="margin-top:0" data-i18n="recHint">Lần trước app đóng bất thường. Những file dưới đây còn thay đổi chưa kịp ghi ra đĩa.</div>
+        <div id="recList" style="display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow:auto;margin-top:14px"></div>
+      </div>
     </div>
-    <div class="foot">
-      <button id="recDropSel" data-i18n="recDropSel">Bỏ mục đã chọn</button>
+    <div class="dfoot">
       <button id="recLater" data-i18n="recLater">Để sau</button>
     </div>
   </div>
@@ -1828,10 +1864,12 @@ function pendingRecovery(){
   return loadIndex().filter(e => e && e.unsaved && e.srcUrl);
 }
 /* Hộp Có/Không dùng chung */
-function askYesNo(msg){
+function askYesNo(msg, sub, icon){
   const ov=$("#ask2Overlay");
   if(!ov) return Promise.resolve(false);
   $("#ask2Msg").textContent=msg;
+  $("#ask2Sub").textContent=sub||"";
+  $("#ask2Icon").textContent=icon||"🗂";
   ov.style.display="flex";
   return new Promise(res=>{
     $("#ask2Yes").onclick=()=>{ ov.style.display="none"; res(true); };
@@ -5291,6 +5329,9 @@ function bindUI(){
     if (!(wide ? hasUnsavedWork() : isDiskDirty())) return Promise.resolve("clean");
     const fname = fileHandle ? fileHandle.name : (window._srcName || (state && state.name) || t("svThis"));
     $("#svMsg").textContent = t("svMsg").replace("{f}", fname);
+    /* Hậu quả của nút "Không" khác hẳn nhau giữa hai trường hợp — nói rõ ra,
+       đừng bắt người dùng đoán. */
+    $("#svSub").textContent = (fileHandle || window._srcUrl) ? t("svSubFile") : t("svSubNew");
     $("#svOverlay").style.display = "flex";
     return new Promise(resolve => {
       $("#svYes").onclick = async () => {
@@ -7221,7 +7262,7 @@ async function openExternalDataAsk(url, obj, fileInfo) {
   const ex = loadIndex().find(e => e && e.unsaved && e.srcUrl === url);
   if (ex) {
     const nm = (fileInfo && fileInfo.name) || baseNameOf(url);
-    if (await askYesNo(t("recOne").replace("{f}", nm))) {
+    if (await askYesNo(t("recOne").replace("{f}", nm), t("recOneSub"), "🛟")) {
       let st = null;
       try { st = JSON.parse(LS.get(prjKey(ex.id))); } catch (err) { }
       if (st) {
@@ -7266,20 +7307,18 @@ function renderRecList(){
   const list=pendingRecovery().filter(e=> e.srcUrl!==window._srcUrl);
   list.forEach(e=>{
     const row=document.createElement("div");
-    row.style.cssText="display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:6px 8px";
-    const cb=document.createElement("input"); cb.type="checkbox"; cb.className="recCb"; cb.dataset.id=e.id;
+    row.className="recRow";
     const wrap=document.createElement("div"); wrap.style.cssText="flex:1;min-width:0";
-    const b=document.createElement("div");
-    b.style.cssText="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+    const b=document.createElement("div"); b.className="rn";
     b.textContent=baseNameOf(e.srcUrl)||e.name; b.title=e.srcUrl||"";
-    const sub=document.createElement("div"); sub.className="hint";
+    const sub=document.createElement("div"); sub.className="rs";
     sub.textContent=(e.name||"")+" · "+new Date(e.updated||Date.now()).toLocaleString("vi-VN");
     wrap.appendChild(b); wrap.appendChild(sub);
     const bO=document.createElement("button"); bO.className="primary"; bO.textContent=t("recOpen");
     bO.onclick=()=>recoverOne(e.id);
     const bX=document.createElement("button"); bX.textContent=t("recDrop");
     bX.onclick=()=>{ clearUnsavedFlag(e.id); if(!renderRecList()) $("#recOverlay").style.display="none"; };
-    row.appendChild(cb); row.appendChild(wrap); row.appendChild(bO); row.appendChild(bX);
+    row.appendChild(wrap); row.appendChild(bO); row.appendChild(bX);
     box.appendChild(row);
   });
   return list.length;
@@ -7290,11 +7329,7 @@ function maybeShowRecovery(){
   return true;
 }
 function bindRecovery(){
-  const d=$("#recDropSel"), l=$("#recLater");
-  if(d) d.onclick=()=>{
-    document.querySelectorAll("#recList .recCb").forEach(cb=>{ if(cb.checked) clearUnsavedFlag(cb.dataset.id); });
-    if(!renderRecList()) $("#recOverlay").style.display="none";
-  };
+  const l=$("#recLater");
   if(l) l.onclick=()=>{ $("#recOverlay").style.display="none"; };
 }
 function bootOpenFromHash(){
@@ -7339,7 +7374,7 @@ async function closeFlow() {
   if (choice !== "no") return true;
   if (fileHandle || window._srcUrl) { clearUnsavedFlag(currentId); return true; }
   if (!stateHasContent()) return true;
-  if (!(await askYesNo(t("keepMsg")))) { purgeProject(currentId); return true; }
+  if (!(await askYesNo(t("keepMsg"), t("keepSub"), "🗂"))) { purgeProject(currentId); return true; }
   const nm = await askName((state && state.name) || "Dự án mới");
   if (nm === null) return false;
   state.name = nm;
@@ -7538,14 +7573,17 @@ en:{tabFile:"File",tabTask:"Task",tabProject:"Project",tabView:"View",tabFormat:
  pickCellFirst:"Select cell(s) first",
  plHint2:"Prints exactly what you type above — no default symbols/legend added.",
  freshHint:"📄 New blank project — open saved ones via File → Projects",
+ svSubFile:"Yes overwrites the file with your latest changes. No leaves the file on disk exactly as it was.",
+ svSubNew:"This project has never been saved to a .tdtc file.",
  keepMsg:"Keep this project in 🗂 My Projects so you can continue later?",
+ keepSub:"No deletes it for good — it will not appear in the project list next time.",
+ recOneSub:"Yes loads the unsaved version. No opens the file as it is on disk and drops the unsaved copy.",
  nmT:"Name this project",
  nmMsg:"The project will be stored in 🗂 My Projects under this name.",
  recT:"🛟 Recover unsaved work",
  recHint:"The app closed unexpectedly last time. These files still have changes that were never written to disk.",
  recOpen:"Reopen",
  recDrop:"Discard",
- recDropSel:"Discard selected",
  recLater:"Later",
  recOne:'"{f}" has changes that were never saved. Reopen the unsaved version and continue?',
  pAll:"All",pOpts:"Options",pPos:"Position:",pTop:"Top",pBottom:"Bottom",pText:"Content",
@@ -7600,14 +7638,17 @@ vi:{tabFile:"Tệp",tabTask:"Công việc",tabProject:"Dự án",tabView:"Hiển
  pickCellFirst:"Chọn ô trước",
  plHint2:"Chỉ in đúng nội dung điền ở trên — không tự thêm chú giải/ký hiệu nào.",
  freshHint:"📄 Dự án mới — mở dự án đã lưu: tab File → 📁 Dự án",
+ svSubFile:"Chọn Có sẽ ghi đè thay đổi mới nhất lên file. Chọn Không thì file trên đĩa giữ nguyên nội dung cũ.",
+ svSubNew:"Dự án này chưa từng được lưu ra file .tdtc.",
  keepMsg:"Giữ dự án này trong 🗂 Dự án của tôi để làm tiếp sau không?",
+ keepSub:"Chọn Không là xóa hẳn — lần sau mở app sẽ không còn thấy dự án này trong danh sách.",
+ recOneSub:"Chọn Có để nạp bản chưa lưu. Chọn Không thì mở đúng nội dung file trên đĩa và bỏ bản dở dang.",
  nmT:"Đặt tên dự án",
  nmMsg:"Dự án sẽ được cất trong 🗂 Dự án của tôi với tên này.",
  recT:"🛟 Phục hồi dự án chưa lưu",
  recHint:"Lần trước app đóng bất thường. Những file dưới đây còn thay đổi chưa kịp ghi ra đĩa.",
  recOpen:"Mở lại",
  recDrop:"Bỏ",
- recDropSel:"Bỏ mục đã chọn",
  recLater:"Để sau",
  recOne:'File "{f}" có thay đổi chưa lưu. Mở lại bản dở dang để làm tiếp không?',
  pAll:"Tất cả",pOpts:"Tùy chọn",pPos:"Vị trí:",pTop:"Trên (Top)",pBottom:"Dưới (Bottom)",pText:"Nội dung",

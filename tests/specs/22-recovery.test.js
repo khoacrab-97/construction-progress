@@ -27,9 +27,13 @@ exports.run = async function (t) {
 
   try {
     t.case("hộp thoại mới có mặt trong DOM");
-    ["#ask2Overlay", "#ask2Yes", "#ask2No", "#nameOverlay", "#nameInp", "#nameOk",
-      "#nameCancel", "#recOverlay", "#recList", "#recDropSel", "#recLater"]
+    ["#ask2Overlay", "#ask2Msg", "#ask2Sub", "#ask2Icon", "#ask2Yes", "#ask2No",
+      "#nameOverlay", "#nameInp", "#nameOk", "#nameCancel",
+      "#recOverlay", "#recList", "#recLater", "#svMsg", "#svSub"]
       .forEach(s => t.ok(!!$(s), "có " + s));
+    t.ok(!$("#recDropSel"), "đã bỏ nút bỏ-hàng-loạt, mỗi dòng chỉ còn Mở lại / Bỏ");
+    t.ok(!!$("#svOverlay .dlg"), "hộp nhắc lưu dùng khung .dlg mới");
+    t.ok(!$("#svOverlay .modal"), "không còn khung .modal cũ");
 
     t.case("baseNameOf tách tên file cho cả hai kiểu dấu phân cách");
     t.eq(APP.baseNameOf("C:/du-an/A.tdtc"), "A.tdtc");
@@ -96,7 +100,7 @@ exports.run = async function (t) {
     t.eq(LS.getItem("tiendo_cur_v1"), null, "xóa con trỏ dự án đang mở");
 
     /* ---------- Luồng B: tắt thủ công, dự án chưa có file ---------- */
-    t.case("B — Hủy thì không được đóng app");
+    t.case("B — Hủy thì không được đóng app, dòng phụ nói đúng trường hợp");
     LS.clear();
     win._srcUrl = null; win._extDirty = false; win._docDirty = false;
     makeState(APP, { name: "Gói thầu 1", tasks: [{ name: "Đào móng", dur: 3 }] });
@@ -104,6 +108,8 @@ exports.run = async function (t) {
     let p = APP.closeFlow();
     await tick();
     t.eq(vis("#svOverlay"), "flex", "hiện hộp Có/Không/Hủy");
+    t.ok(/chưa từng được lưu/.test($("#svSub").textContent),
+      "dự án chưa có file → dòng phụ nói rõ điều đó: " + $("#svSub").textContent);
     $("#svCancel").onclick();
     t.eq(await p, false, "closeFlow trả false → ở lại app");
     t.eq(vis("#svOverlay"), "none", "hộp đã đóng");
@@ -169,6 +175,8 @@ exports.run = async function (t) {
     p = APP.closeFlow();
     await tick();
     t.eq(vis("#svOverlay"), "flex", "vẫn hỏi Có/Không/Hủy");
+    t.ok(/ghi đè/.test($("#svSub").textContent),
+      "dự án đã có file → dòng phụ nói về ghi đè: " + $("#svSub").textContent);
     $("#svNo").onclick();
     t.eq(await p, true, "đóng app luôn, không hỏi thêm");
     t.eq(vis("#ask2Overlay"), "none", "không hỏi câu thứ hai với file đã có sẵn");
@@ -187,7 +195,10 @@ exports.run = async function (t) {
     ]);
     t.eq(APP.pendingRecovery().length, 2, "C thiếu cờ, D thiếu file → loại");
     t.eq(APP.renderRecList(), 2, "danh sách vẽ 2 dòng");
-    t.eq(win.document.querySelectorAll("#recList .recCb").length, 2, "mỗi dòng một ô tick");
+    t.eq(win.document.querySelectorAll("#recList .recRow").length, 2, "mỗi mục một dòng");
+    t.eq(win.document.querySelectorAll("#recList input").length, 0, "không còn ô tích nào");
+    t.eq(win.document.querySelectorAll("#recList .recRow")[0].querySelectorAll("button").length, 2,
+      "mỗi dòng đúng hai nút: Mở lại và Bỏ");
 
     t.case("bỏ dần từng mục, hết mục thì không hiện hộp nữa");
     t.eq(APP.maybeShowRecovery(), true, "còn mục → hiện hộp");
@@ -200,18 +211,20 @@ exports.run = async function (t) {
     $("#recOverlay").style.display = "none";
     t.eq(APP.maybeShowRecovery(), false, "hết mục → không hiện hộp");
 
-    t.case("bỏ hàng loạt qua ô tick");
+    t.case("nút Bỏ trên từng dòng gỡ đúng mục đó");
     APP.saveIndex([
       { id: "pA", name: "A", updated: 1, srcUrl: "C:/d/A.tdtc", unsaved: 1 },
       { id: "pB", name: "B", updated: 2, srcUrl: "C:/d/B.tdtc", unsaved: 1 },
       { id: "pC", name: "C", updated: 3, srcUrl: "C:/d/C.tdtc", unsaved: 1 }
     ]);
     APP.renderRecList();
-    const cbs = Array.from(win.document.querySelectorAll("#recList .recCb"));
-    t.eq(cbs.length, 3);
-    cbs[0].checked = true; cbs[2].checked = true;
-    $("#recDropSel").onclick();
-    t.eq(APP.pendingRecovery().map(e => e.id), ["pB"], "bỏ đúng hai mục đã tick");
+    const rows = () => Array.from(win.document.querySelectorAll("#recList .recRow"));
+    t.eq(rows().length, 3);
+    /* Nút thứ hai của mỗi dòng là "Bỏ". Bỏ dòng đầu rồi bỏ dòng cuối. */
+    rows()[0].querySelectorAll("button")[1].onclick();
+    t.eq(APP.pendingRecovery().map(e => e.id), ["pB", "pC"], "gỡ đúng mục đầu");
+    rows()[1].querySelectorAll("button")[1].onclick();
+    t.eq(APP.pendingRecovery().map(e => e.id), ["pB"], "gỡ đúng mục cuối, mục giữa còn nguyên");
 
     t.case("'Để sau' chỉ đóng hộp, các mục vẫn chờ lần mở sau");
     APP.maybeShowRecovery();
