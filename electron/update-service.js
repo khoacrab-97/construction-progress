@@ -132,7 +132,9 @@ function createUpdateService() {
         };
       }
 
-      autoUpdater.quitAndInstall(false, true);
+      // isSilent = true → truyền cờ /S cho trình cài NSIS: cài đè trong nền,
+      // không hiện cửa sổ trình cài đặt. isForceRunAfter = true → tự mở lại app.
+      autoUpdater.quitAndInstall(true, true);
       return {
         status: "installing"
       };

@@ -1,10 +1,18 @@
 name: Build và phát hành
 
+# Chỉ phát hành khi ĐẨY TAG (hoặc bấm Run workflow thủ công).
+# Push code thường lên main KHÔNG tạo release — tránh việc sửa tài liệu cũng
+# đẩy ra một bản mới và làm người dùng bị nhắc cập nhật vô ích.
 on:
   push:
-    branches:
-      - main
+    tags:
+      - "v*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Phiên bản cần phát hành, ví dụ 1.0.5"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -29,18 +37,32 @@ jobs:
       - name: Cài gói phụ thuộc
         run: npm ci
 
-      - name: Tạo version release CI
+      - name: Kiểm tra cú pháp và chạy bộ test
+        run: npm test
+
+      - name: Xác định phiên bản và tag
         id: version
         shell: pwsh
         run: |
-          $pkg = Get-Content package.json | ConvertFrom-Json
-          $parts = $pkg.version.Split(".")
-          $version = "$($parts[0]).$($parts[1]).${{ github.run_number }}"
-          npm version $version --no-git-tag-version
+          if ($env:GITHUB_REF_TYPE -eq "tag") {
+            $tag = $env:GITHUB_REF_NAME
+            $version = $tag -replace "^v", ""
+          } else {
+            $version = "${{ inputs.version }}".Trim() -replace "^v", ""
+            $tag = "v$version"
+          }
+
+          if ($version -notmatch "^\d+\.\d+\.\d+$") {
+            throw "Phiên bản '$version' không đúng dạng x.y.z (tag phải là vX.Y.Z)."
+          }
+
+          npm version $version --no-git-tag-version --allow-same-version
           "version=$version" >> $env:GITHUB_OUTPUT
-          "tag=v$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          Write-Host "Sẽ phát hành $tag (version $version)"
 
       - name: Tạo git tag cho release
+        if: github.event_name == 'workflow_dispatch'
         shell: pwsh
         run: |
           $tag = "${{ steps.version.outputs.tag }}"
@@ -153,6 +175,10 @@ jobs:
         shell: pwsh
         run: |
           "Đã phát hành release ${{ steps.version.outputs.tag }}" >> $env:GITHUB_STEP_SUMMARY
+          "" >> $env:GITHUB_STEP_SUMMARY
+          "Trang tải cho người dùng mới:" >> $env:GITHUB_STEP_SUMMARY
+          "https://github.com/${{ github.repository }}/releases/latest" >> $env:GITHUB_STEP_SUMMARY
+          "" >> $env:GITHUB_STEP_SUMMARY
           Get-ChildItem dist -File | ForEach-Object {
             "- $($_.Name)" >> $env:GITHUB_STEP_SUMMARY
           }

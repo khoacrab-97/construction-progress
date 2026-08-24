@@ -11,14 +11,19 @@
     "dev": "electron .",
     "build": "electron-builder",
     "build:win": "electron-builder --win --x64",
-    "release:win": "electron-builder --win --x64 --publish always"
+    "release:win": "electron-builder --win --x64 --publish always",
+    "test": "node tests/syntax-check.js && node tests/run-all.js",
+    "test:syntax": "node tests/syntax-check.js",
+    "snap": "node tests/snap.js"
   },
   "dependencies": {
     "electron-updater": "^6.8.9"
   },
   "devDependencies": {
     "electron": "^43.4.1",
-    "electron-builder": "^26.15.3"
+    "electron-builder": "^26.15.3",
+    "js-yaml": "^4.3.1",
+    "jsdom": "^30.0.1"
   },
   "build": {
     "appId": "vn.construction.progress",

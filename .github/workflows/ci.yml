@@ -1,0 +1,34 @@
+name: Kiểm thử
+
+# Từ khi release chuyển sang chạy theo tag, push lên main không còn kích hoạt
+# build nữa. Workflow này giữ lại phần kiểm tra để code đẩy lên vẫn được soát.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Cú pháp và bộ test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Lấy mã nguồn
+        uses: actions/checkout@v7
+
+      - name: Cài Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Cài gói phụ thuộc
+        # Bộ test chỉ cần jsdom; không tải nhị phân Electron cho job này.
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+        run: npm ci
+
+      - name: Kiểm tra cú pháp và chạy bộ test
+        run: npm test
