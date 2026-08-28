@@ -9,10 +9,15 @@ const { createUpdateService } = require("./update-service");
 const APP_NAME = "Tiến độ thi công";
 const PROJECT_EXTENSIONS = new Set([".tdtc", ".json"]);
 
-let mainWindow = null;
-let currentProjectPath = null;
+/* MỖI CỬA SỔ LÀ MỘT TÀI LIỆU RIÊNG.
+   Trước đây main.js giữ đúng một mainWindow và một currentProjectPath, nên
+   mở hai file là hai cửa sổ ghi đè đường dẫn của nhau — bấm Lưu ở cửa sổ này
+   có thể ghi vào file của cửa sổ kia. Nay mọi thứ tra theo webContents.id. */
+const winPath = new Map();      // wcId → đường dẫn .tdtc cửa sổ đang giữ
+const winPending = new Map();   // wcId → file cần mở ngay khi cửa sổ dựng xong
+const allowClose = new Set();   // wcId đã xác nhận cho đóng
+let allowCloseAll = false;      // đang cài bản cập nhật → đóng hết, không hỏi
 let pendingOpenFile = null;
-let allowWindowClose = false;
 let updateService = null;
 
 function projectFilters() {
@@ -69,7 +74,10 @@ async function readProjectFile(filePath) {
   if (!data || !Array.isArray(data.tasks) || !data.start) {
     throw new Error("Tệp dự án không hợp lệ.");
   }
-  currentProjectPath = normalized;
+  /* KHÔNG gán winPath ở đây. Đọc file chỉ là đọc — cửa sổ có nhận nó làm
+     tài liệu của mình hay không là do renderer quyết, và nó khai báo bằng
+     project:set-path. Trước đây gán ngay tại đây nên mở file thứ ba bị hiểu
+     nhầm là "file đã mở ở cửa sổ này" và chỉ focus lại chính nó. */
   return {
     canceled: false,
     data,
@@ -77,18 +85,18 @@ async function readProjectFile(filePath) {
   };
 }
 
-async function writeProjectFile(filePath, jsonText) {
+async function writeProjectFile(filePath, jsonText, wcId) {
   const normalized = normalizeProjectPath(filePath);
   if (!normalized) throw new Error("Định dạng tệp dự án không được hỗ trợ.");
   await fs.writeFile(normalized, jsonText, "utf8");
-  currentProjectPath = normalized;
+  if (wcId != null) winPath.set(wcId, normalized);
   return {
     canceled: false,
     ...projectDescriptor(normalized)
   };
 }
 
-function createWindow() {
+function createWindow(filePath) {
   const iconPath = path.join(__dirname, "..", "assets", "icon.ico");
   const browserWindowOptions = {
     title: APP_NAME,
@@ -111,42 +119,74 @@ function createWindow() {
     browserWindowOptions.icon = iconPath;
   }
 
-  mainWindow = new BrowserWindow(browserWindowOptions);
+  const win = new BrowserWindow(browserWindowOptions);
+  const wcId = win.webContents.id;
+  if (filePath) winPending.set(wcId, filePath);
 
-  mainWindow.once("ready-to-show", () => {
-    mainWindow.show();
+  win.once("ready-to-show", () => {
+    win.show();
   });
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+  win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) shell.openExternal(url);
     return { action: "deny" };
   });
 
-  mainWindow.webContents.on("will-navigate", (event, url) => {
-    const currentUrl = mainWindow.webContents.getURL();
+  win.webContents.on("will-navigate", (event, url) => {
+    const currentUrl = win.webContents.getURL();
     if (url !== currentUrl && /^https?:\/\//i.test(url)) {
       event.preventDefault();
       shell.openExternal(url);
     }
   });
 
-  mainWindow.on("close", (event) => {
-    if (allowWindowClose) return;
+  win.on("close", (event) => {
+    // allowCloseAll: đang cài bản cập nhật, mọi cửa sổ phải đóng không hỏi lại
+    if (allowCloseAll || allowClose.has(wcId)) return;
     event.preventDefault();
-    mainWindow.webContents.send("app:close-request");
+    win.webContents.send("app:close-request");
   });
 
-  mainWindow.on("closed", () => {
-    mainWindow = null;
+  win.on("closed", () => {
+    winPath.delete(wcId);
+    winPending.delete(wcId);
+    allowClose.delete(wcId);
   });
 
-  mainWindow.loadFile(path.join(__dirname, "..", "src", "index.html"));
+  win.loadFile(path.join(__dirname, "..", "src", "index.html"));
+  return win;
 }
 
-function focusMainWindow() {
-  if (!mainWindow) return;
-  if (mainWindow.isMinimized()) mainWindow.restore();
-  mainWindow.focus();
+function focusWindow(win) {
+  if (!win || win.isDestroyed()) return;
+  if (win.isMinimized()) win.restore();
+  win.focus();
+}
+
+function samePath(a, b) {
+  if (!a || !b) return false;
+  return path.normalize(a).toLowerCase() === path.normalize(b).toLowerCase();
+}
+
+function windowForPath(filePath) {
+  const target = normalizeProjectPath(filePath);
+  if (!target) return null;
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (win.isDestroyed()) continue;
+    if (samePath(winPath.get(win.webContents.id), target)) return win;
+    if (samePath(winPending.get(win.webContents.id), target)) return win;
+  }
+  return null;
+}
+
+/* Mở một file thành cửa sổ riêng. Nếu file đó đang mở ở đâu rồi thì đưa cửa
+   sổ đó lên chứ KHÔNG nhân bản — hai cửa sổ cùng một file sẽ ghi đè lẫn nhau
+   cả trên đĩa lẫn trong localStorage. */
+function openFileWindow(filePath) {
+  const existing = windowForPath(filePath);
+  if (existing) { focusWindow(existing); return { focused: true }; }
+  createWindow(filePath);
+  return { opened: true };
 }
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
@@ -158,21 +198,22 @@ if (!gotSingleInstanceLock) {
 
   app.on("second-instance", (_event, commandLine, workingDirectory) => {
     const filePath = findProjectArg(commandLine, workingDirectory);
-    focusMainWindow();
-    if (filePath && mainWindow) {
-      mainWindow.webContents.send("project:open-file-request", projectDescriptor(filePath));
-    }
+    if (filePath) { openFileWindow(filePath); return; }
+    focusWindow(BrowserWindow.getAllWindows()[0]);
   });
 
   app.whenReady().then(() => {
     updateService = createUpdateService(payload => {
-      if (!mainWindow || mainWindow.isDestroyed()) return;
-      try { mainWindow.webContents.send("updates:event", payload); } catch (error) { }
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (win.isDestroyed()) continue;
+        try { win.webContents.send("updates:event", payload); } catch (error) { }
+      }
     });
-    createWindow();
+    createWindow(pendingOpenFile);
+    pendingOpenFile = null;
 
     app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+      if (BrowserWindow.getAllWindows().length === 0) createWindow(null);
     });
   });
 }
@@ -183,11 +224,28 @@ app.on("window-all-closed", () => {
 
 ipcMain.handle("app:get-version", () => app.getVersion());
 
-ipcMain.handle("app:get-initial-open-file", () => {
-  if (!pendingOpenFile) return null;
-  const descriptor = projectDescriptor(pendingOpenFile);
-  pendingOpenFile = null;
-  return descriptor;
+ipcMain.handle("app:get-initial-open-file", (event) => {
+  const wcId = event.sender.id;
+  const filePath = winPending.get(wcId);
+  if (!filePath) return null;
+  winPending.delete(wcId);
+  winPath.set(wcId, filePath);   // cửa sổ này nhận file đó làm tài liệu của mình
+  return projectDescriptor(filePath);
+});
+
+/* Renderer nhờ mở một cửa sổ mới — cho file, hoặc trống khi truyền null */
+ipcMain.handle("app:open-window", (_event, filePath) => {
+  if (!filePath) { createWindow(null); return { opened: true }; }
+  return openFileWindow(filePath);
+});
+
+/* Renderer khai báo "cửa sổ này đang giữ file nào". Là nguồn sự thật cho
+   nút Lưu: thiếu nó thì Lưu không biết ghi đè vào đâu. */
+ipcMain.handle("project:set-path", (event, filePath) => {
+  const wcId = event.sender.id;
+  const normalized = filePath ? normalizeProjectPath(filePath) : null;
+  if (normalized) winPath.set(wcId, normalized); else winPath.delete(wcId);
+  return true;
 });
 
 ipcMain.handle("app:set-window-title", (event, title) => {
@@ -195,10 +253,11 @@ ipcMain.handle("app:set-window-title", (event, title) => {
   if (win && typeof title === "string") win.setTitle(title.slice(0, 240));
 });
 
-ipcMain.handle("app:close-after-confirm", () => {
-  if (!mainWindow) return;
-  allowWindowClose = true;
-  mainWindow.close();
+ipcMain.handle("app:close-after-confirm", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win || win.isDestroyed()) return;
+  allowClose.add(event.sender.id);
+  win.close();
 });
 
 ipcMain.handle("project:open", async (event) => {
@@ -230,7 +289,7 @@ async function saveProject(event, payload, forceSaveAs) {
   const jsonText = typeof payload?.json === "string" ? payload.json : "";
   if (!jsonText) return { canceled: false, error: "Không có dữ liệu dự án để lưu." };
 
-  let targetPath = forceSaveAs ? null : currentProjectPath;
+  let targetPath = forceSaveAs ? null : winPath.get(event.sender.id);
 
   if (!targetPath) {
     const defaultName = safeFileNameFromProjectName(payload?.suggestedName || payload?.projectName);
@@ -245,7 +304,7 @@ async function saveProject(event, payload, forceSaveAs) {
   }
 
   try {
-    return await writeProjectFile(targetPath, jsonText);
+    return await writeProjectFile(targetPath, jsonText, event.sender.id);
   } catch (error) {
     return { canceled: false, error: error.message || String(error) };
   }
@@ -306,6 +365,9 @@ ipcMain.handle("updates:download", async () => {
 });
 
 ipcMain.handle("updates:quit-and-install", () => {
+  // Nhiều cửa sổ: nếu không mở cờ này thì từng cửa sổ sẽ chặn close để hỏi
+  // lưu, và bản cập nhật treo giữa chừng không bao giờ cài xong.
+  allowCloseAll = true;
   if (!updateService) {
     return {
       status: "disabled",

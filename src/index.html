@@ -1631,6 +1631,49 @@ const LS={
   del(k){ try{ localStorage.removeItem(k); }catch(e){} }
 };
 function prjKey(id){ return "tiendo_prj_"+id; }
+
+/* ===== Nhiều cửa sổ cùng chạy =====
+   localStorage dùng chung cho mọi cửa sổ. Nếu một dự án bị mở ở hai cửa sổ
+   thì cả hai cùng ghi tiendo_prj_<id> và đè lên nhau — mất dữ liệu âm thầm.
+   Mỗi cửa sổ tự nhận một mã ngẫu nhiên rồi ghi dấu vào OPENKEY kèm mốc thời
+   gian. Dấu cũ quá OPEN_TTL coi như cửa sổ đó đã chết, tự hết hiệu lực —
+   không cần dọn dẹp, cửa sổ bị tắt đột ngột cũng không khóa vĩnh viễn. */
+const OPENKEY = "tiendo_open_v1";
+const OPEN_TTL = 30000;   // ms
+const WINKEY = "w" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+function loadOpenMap(){ try{ return JSON.parse(LS.get(OPENKEY))||{}; }catch(e){ return {}; } }
+/* Dự án đang mở ở CỬA SỔ KHÁC và cửa sổ đó còn sống? */
+function openElsewhere(id){
+  if(!id) return false;
+  const e=loadOpenMap()[id];
+  return !!(e && e.w!==WINKEY && (Date.now()-(e.ts||0))<OPEN_TTL);
+}
+function claimOpen(id){
+  if(!id) return;
+  try{
+    const m=loadOpenMap();
+    m[id]={w:WINKEY, ts:Date.now()};
+    // dọn luôn dấu đã quá hạn để bảng không phình mãi
+    Object.keys(m).forEach(k=>{ if(Date.now()-(m[k].ts||0) > OPEN_TTL*4) delete m[k]; });
+    LS.set(OPENKEY, JSON.stringify(m));
+  }catch(e){}
+}
+function releaseOpen(id){
+  if(!id) return;
+  try{
+    const m=loadOpenMap();
+    if(m[id] && m[id].w===WINKEY){ delete m[id]; LS.set(OPENKEY, JSON.stringify(m)); }
+  }catch(e){}
+}
+/* Báo cho tiến trình chính biết cửa sổ này đang giữ file nào — nguồn sự thật
+   cho nút Lưu. Không có nó thì Lưu ở cửa sổ A có thể ghi vào file cửa sổ B. */
+function tellPath(p){
+  try{
+    if(window.desktop && window.desktop.setProjectPath)
+      return window.desktop.setProjectPath(p||null);
+  }catch(e){}
+  return Promise.resolve();
+}
 function newId(){ return "p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function loadIndex(){ try{ return JSON.parse(LS.get(IDXKEY))||[]; }catch(e){ return []; } }
 function saveIndex(ix){ LS.set(IDXKEY, JSON.stringify(ix)); }
@@ -1719,6 +1762,11 @@ function save(){
     const e=ix.find(x=>x.id===currentId);
     if(e){ e.name=state.name; e.updated=Date.now(); }
     else ix.push({id:currentId, name:state.name, updated:Date.now()});
+    /* Nhiều cửa sổ cùng ghi tiendo_idx_v1 sẽ nuốt thay đổi của nhau
+       (đọc–sửa–ghi không nguyên tử). save() chạy mỗi lần sửa một ô nên đây là
+       đường nóng: chỉ ghi lại danh mục khi có thứ đáng ghi, hoặc mỗi 5 giây. */
+    const _now=Date.now();
+    if(_now-(window._lastClaim||0) > 5000){ window._lastClaim=_now; claimOpen(currentId); }
     /* Cờ "còn thay đổi chưa ghi ra .tdtc", nằm trong danh mục nên SỐNG SÓT
        qua mất điện / treo máy. Cờ còn sót lúc khởi động = lần trước app chết
        bất thường → hỏi phục hồi. Tắt tử tế thì một trong hai nhánh của
@@ -1727,8 +1775,12 @@ function save(){
       const e2=ix.find(x=>x.id===currentId);
       if(e2){ e2.srcUrl=window._srcUrl; e2.unsaved=1; }
     }
-    saveIndex(ix);
-    LS.set(CURKEY, currentId);
+    const _sig=JSON.stringify(ix.find(x=>x.id===currentId)||null);
+    if(_sig!==window._idxSig || _now-(window._lastIdx||0) > 5000){
+      window._idxSig=_sig; window._lastIdx=_now;
+      saveIndex(ix);
+      LS.set(CURKEY, currentId);
+    }
   }catch(e){}
   if(!window._saveQuiet) window._docDirty=true;
   if(fileHandle && !fileDirty){ fileDirty=true; updateFileLabel(); }
@@ -1766,6 +1818,7 @@ function startFreshSession(){
   mergeDefaults();
   fileHandle=null; fileDirty=false;
   window._docDirty=false;
+  tellPath(null);
 }
 function stateHasContent(){
   if(state.tasks && state.tasks.some(t=>String((t&&t.name)||"").trim())) return true;
@@ -1784,6 +1837,11 @@ function resetSession(){
 }
 function switchProject(id){
   if(id===currentId) return;
+  if(openElsewhere(id)){
+    toast("Dự án này đang mở ở một cửa sổ khác — dùng Alt+Tab để chuyển sang");
+    return;
+  }
+  releaseOpen(currentId);
   save();
   let st=null;
   try{ st=JSON.parse(LS.get(prjKey(id))); }catch(e){}
@@ -1870,7 +1928,7 @@ function purgeProject(id){
   }catch(err){}
 }
 function pendingRecovery(){
-  return loadIndex().filter(e => e && e.unsaved && e.srcUrl);
+  return loadIndex().filter(e => e && e.unsaved && e.srcUrl && !openElsewhere(e.id));
 }
 /* Hộp Có/Không dùng chung */
 function askYesNo(msg, sub, icon){
@@ -5369,6 +5427,16 @@ function bindUI(){
         if (res && res.canceled) return false;
         if (!res || res.error) { toast("File không hợp lệ" + (res && res.error ? ": " + res.error : "")); return false; }
         if (!res.data || !res.data.tasks || !res.data.start) throw 0;
+        /* Cửa sổ này đã có tài liệu → file mới mở ở CỬA SỔ RIÊNG, như Word.
+           Nhờ vậy Alt+Tab chuyển qua lại được giữa các file. */
+        if (res.filePath && (fileHandle || window._srcUrl || stateHasContent())) {
+          // Chờ khai báo xong rồi mới nhờ mở cửa sổ — nếu không, openWindow
+          // có thể chạy trước và tưởng file đó đã mở sẵn ở cửa sổ này.
+          await tellPath(window._srcUrl || null);
+          const r = await window.desktop.openWindow(res.filePath);
+          if (r && r.focused) toast("File này đang mở ở một cửa sổ khác");
+          return true;
+        }
         await openExternalDataAsk(res.filePath || res.fileName, res.data, { name: res.fileName || "project.tdtc", desktop: true });
         return true;
       }
@@ -7313,7 +7381,11 @@ function openExternalData(url, obj, fileInfo) {
     currentId = newId();
   }
   resetSession();
+  releaseOpen(window._prevId);
+  window._prevId = currentId;
+  claimOpen(currentId);
   window._srcUrl = url; window._extDirty = false;
+  tellPath(url);
   window._srcName = (fileInfo && fileInfo.name) || "";
   fileHandle = fileInfo ? { name: fileInfo.name || "project.tdtc", desktop: !!fileInfo.desktop } : null;
   fileDirty = false;
@@ -7861,7 +7933,7 @@ window.APP = {
   hasPST, pstOrdinal, idxOfId, setProjectSummary, children, insertTasksAt, setScheduleMode, moveBlockTo, moveColumn, toggleCollapse, computeHidden, colIdxOf, autoRowH, barTextFS,
   colLabelOf, autoFitCol, autoFitRows, textPx, paintColSel, fmtStyleCss,
   switchProject, newProject, duplicateProject, deleteProject, loadIndex, saveIndex, prjKey, updateFileLabel, openExternalData,
-  isDiskDirty, hasUnsavedWork, baseNameOf, markUnsaved, clearUnsavedFlag, purgeProject, pendingRecovery, renderRecList, maybeShowRecovery, closeFlow, openExternalDataAsk, recoverOne, save,
+  isDiskDirty, hasUnsavedWork, baseNameOf, openElsewhere, claimOpen, releaseOpen, loadOpenMap, OPENKEY, WINKEY, markUnsaved, clearUnsavedFlag, purgeProject, pendingRecovery, renderRecList, maybeShowRecovery, closeFlow, openExternalDataAsk, recoverOne, save,
   get currentId(){ return currentId; },
   get colSel(){ return colSel; },
   selectCols(arr){ colSel=new Set(arr); paintColSel(); },
