@@ -291,6 +291,8 @@ lưu vào `localStorage` và xuất ra file `.tdtc`.
 |`tiendo\_prj\_<id>`|Toàn bộ `state` của một dự án|
 |`tiendo\_gantt\_v1`|Khóa bản cũ (thời còn 1 dự án duy nhất) — **giữ để chuyển đổi, không xóa**|
 |`tiendo\_lang\_v1`|Ngôn ngữ giao diện đang chọn|
+|`tiendo\_recent\_v1`|15 file `.tdtc` mở gần nhất, cho màn hình đầu (xem 3.7)|
+|`tiendo\_open\_v1`|Dự án nào đang mở ở cửa sổ nào, hạn 30 giây (xem 3.8)|
 
 ### Object `state`
 
