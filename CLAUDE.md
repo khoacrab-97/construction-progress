@@ -555,7 +555,7 @@ song ngữ, biểu đồ nhân lực.
 **Lưu \& phục hồi** — nhắc lưu kiểu MS Project cho cả dự án chưa có file, hộp
 phục hồi sau khi app đóng bất thường, không còn cảnh file cũ đè bản mới (xem 3.6).
 
-**Kiểm thử** — **22 bộ test, 937 assertion**, chạy trên jsdom, nằm trong `tests/`.
+**Kiểm thử** — **22 bộ test, 942 assertion**, chạy trên jsdom, nằm trong `tests/`.
 Chạy bằng `npm test`. Xem `tests/README.md` để biết cách viết thêm và quy trình
 chụp ảnh SVG.
 

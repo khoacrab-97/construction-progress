@@ -349,51 +349,78 @@ textarea{width:100%;height:90px;border:1px solid var(--line-strong);border-radiu
   font-family:"Segoe UI",Arial,sans-serif}
 .dlg input[type=text]:focus{outline:none;border-color:var(--accent);
   box-shadow:0 0 0 3px rgba(31,111,178,.16)}
-/* ===== Màn hình đầu (Home / New / Open) — kiểu Backstage của MS Project ===== */
-#startOverlay{position:fixed;inset:0;display:none;z-index:80;background:var(--paper);
-  font-family:"Segoe UI",Arial,sans-serif}
+/* ===== Backstage (tab File) — nền tối như MS Project =====
+   z-index 55: TRÊN giao diện app nhưng DƯỚI mọi hộp thoại (thấp nhất là 60).
+   Để 80 như trước thì Backstage che mất hộp Lưu / hộp In, nên phải đóng nó đi
+   mới thấy được — người dùng thấy như bị "nhảy về giao diện dự án". */
+#startOverlay{position:fixed;inset:0;display:none;z-index:55;background:#464646;
+  color:#f0f0f0;font-family:"Segoe UI",Arial,sans-serif}
 #startOverlay.on{display:flex}
-.st-rail{width:164px;flex:0 0 auto;background:#3a4550;color:#e6ecf1;
+.st-rail{width:176px;flex:0 0 auto;background:#262626;color:#e9e9e9;
   display:flex;flex-direction:column;padding:10px 0}
-.st-back{width:34px;height:34px;margin:2px 0 12px 14px;border-radius:50%;
-  background:#2f3945;border:0;color:#e6ecf1;font-size:17px;cursor:pointer;font-family:inherit}
-.st-back:hover{background:var(--accent);color:#fff;border-color:transparent}
-.st-nav{display:flex;align-items:center;gap:10px;
-  background:none;border:0;color:#cfd8df;padding:9px 16px;cursor:pointer;font-size:13px;
+.st-back{width:34px;height:34px;margin:4px 0 14px 16px;border-radius:50%;
+  background:none;border:1px solid #6a6a6a;color:#e9e9e9;font-size:16px;cursor:pointer;font-family:inherit}
+.st-back:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+.st-nav{display:flex;align-items:center;gap:12px;
+  background:none;border:0;color:#e9e9e9;padding:9px 18px;cursor:pointer;font-size:13px;
   border-radius:0;width:100%;font-family:inherit;text-align:left}
-.st-nav:hover{background:#46525f;color:#fff;border-color:transparent}
+.st-nav:hover{background:#3a3a3a;color:#fff;border-color:transparent}
 .st-nav.on{background:var(--accent);color:#fff}
 .st-nav span{font-size:13px}
 .st-nav em{font-style:normal;font-size:15px;line-height:1;width:18px;text-align:center}
-.st-sep{height:1px;background:#4d5865;margin:8px 14px}
+.st-sep{height:1px;background:#4d4d4d;margin:10px 18px}
+.st-ver{font-size:11px;color:#9a9a9a;text-align:center;padding:8px 6px}
+
+.st-main{flex:1;overflow:auto;padding:22px 34px 34px}
 .st-pane{display:none}
 .st-pane.on{display:block}
-.st-grp{font-size:11.5px;color:var(--ink-soft);font-weight:600;
-  text-transform:uppercase;letter-spacing:.4px;margin:18px 0 6px}
-.st-langbtn{display:block;width:260px;text-align:left;margin-bottom:8px;padding:10px 14px;
-  font-size:13px;font-family:inherit;border:1px solid var(--line-strong);border-radius:6px;background:#fff;cursor:pointer}
-.st-langbtn.on{border-color:var(--accent);background:#eaf1f8;font-weight:600}
-.st-ver{font-size:11px;color:#8fa0ae;text-align:center;padding:8px 6px}
-.st-main{flex:1;overflow:auto;padding:26px 34px 34px}
-.st-hello{font-size:26px;font-weight:300;color:var(--ink);margin-bottom:22px}
-.st-sect{font-size:13px;font-weight:600;color:var(--ink);margin:0 0 10px}
-.st-tile{width:150px;background:#fff;border:1px solid var(--line);border-radius:4px;
-  padding:0 0 8px;cursor:pointer;text-align:center;font-family:inherit}
-.st-tile:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(16,34,50,.12)}
-.st-thumb{height:104px;margin:8px 8px 6px;background:#fff;border:1px solid var(--line-strong)}
-.st-tname{font-size:12.5px;color:var(--ink)}
-.st-cols{display:grid;grid-template-columns:1fr 1fr;gap:34px;margin-top:30px}
+.st-h1{font-size:30px;font-weight:300;color:#fff;margin:0 0 18px}
+.st-sect{font-size:13.5px;font-weight:600;color:#fff;margin:0 0 12px}
+.st-hint{font-size:12px;color:#bdbdbd;line-height:1.5}
+
+/* Ô mẫu dự án */
+.st-tiles{display:flex;gap:22px;flex-wrap:wrap}
+.st-tile{width:132px;background:none;border:0;padding:0;cursor:pointer;text-align:center;font-family:inherit}
+.st-thumb{height:96px;background:#fff;border:1px solid #8a8a8a;margin-bottom:8px}
+.st-tile:hover .st-thumb{outline:2px solid var(--accent)}
+.st-tname{font-size:12.5px;color:#e9e9e9}
+.st-rule{height:1px;background:#5a5a5a;margin:22px 0 14px}
+
+/* Tab Gần đây / Dự án của tôi */
+.st-tabs{display:flex;gap:22px;border-bottom:1px solid #5a5a5a;margin-bottom:4px}
+.st-tab{background:none;border:0;border-bottom:2px solid transparent;color:#cfcfcf;
+  padding:6px 2px;font-size:13.5px;cursor:pointer;font-family:inherit;border-radius:0}
+.st-tab:hover{color:#fff;background:none;border-color:transparent;border-bottom-color:#8a8a8a}
+.st-tab.on{color:#fff;border-bottom-color:var(--accent);font-weight:600}
+
+/* Bảng danh sách file */
+.st-head{display:flex;align-items:center;gap:10px;padding:8px 8px 6px;
+  border-bottom:1px solid #5a5a5a;font-size:12px;color:#bdbdbd}
+.st-head .tx{flex:1}
 .st-list{display:flex;flex-direction:column}
-.st-item{display:flex;align-items:center;gap:10px;padding:8px 8px;border-bottom:1px solid var(--line);
+.st-item{display:flex;align-items:center;gap:12px;padding:9px 8px;border-bottom:1px solid #545454;
   cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;
-  text-align:left;font-family:inherit;width:100%}
-.st-item:hover{background:#eaf1f8;border-color:var(--line)}
+  text-align:left;font-family:inherit;width:100%;color:#f0f0f0}
+.st-item:hover{background:#565656;border-color:#545454}
 .st-item .ic{font-size:17px;flex:0 0 auto}
 .st-item .tx{flex:1;min-width:0}
-.st-item .nm{font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.st-item .pa{font-size:11px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.st-item .dt{font-size:11px;color:var(--ink-soft);white-space:nowrap}
-.st-empty{font-size:12px;color:var(--ink-soft);padding:10px 2px}
+.st-item .nm{font-size:13.5px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-item .pa{font-size:11.5px;color:#bdbdbd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-item .dt{font-size:12px;color:#cfcfcf;white-space:nowrap}
+.st-empty{font-size:12.5px;color:#bdbdbd;padding:14px 2px}
+.st-grp{font-size:13px;color:#fff;font-weight:600;margin:16px 0 4px}
+
+/* Cột "nơi lưu" của Open / Save As */
+.st-two{display:flex;gap:30px;align-items:flex-start}
+.st-places{width:260px;flex:0 0 auto}
+.st-place{display:flex;align-items:center;gap:12px;width:100%;padding:11px 12px;
+  background:none;border:0;color:#f0f0f0;cursor:pointer;font-size:13px;
+  font-family:inherit;text-align:left;border-radius:0}
+.st-place:hover{background:#565656;border-color:transparent}
+.st-place.on{background:#3a3a3a;outline:1px solid #7a7a7a}
+.st-place em{font-style:normal;font-size:18px;width:22px;text-align:center}
+.st-plcap{font-size:11.5px;color:#cfcfcf;background:#3a3a3a;padding:4px 12px;margin-top:10px}
+.st-right{flex:1;min-width:0}
 .recRow{display:flex;gap:10px;align-items:center;border:1px solid var(--line);
   border-radius:8px;padding:9px 11px;background:#fff}
 .recRow:hover{border-color:var(--line-strong);background:#fbfcfd}
@@ -1615,7 +1642,7 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
   </div>
 </div>
 
-<!-- Màn hình đầu: Home / New / Open -->
+<!-- Backstage (tab File) -->
 <div id="startOverlay">
   <div class="st-rail">
     <button class="st-back" id="stBack" title="Quay lại">←</button>
@@ -1624,7 +1651,7 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
     <button class="st-nav" data-pane="open"><em>📂</em><span data-i18n="stOpen">Open</span></button>
     <div class="st-sep"></div>
     <button class="st-nav" id="stSave"><em>💾</em><span data-i18n="stSaveL">Lưu</span></button>
-    <button class="st-nav" id="stSaveAs"><em>💾</em><span data-i18n="stSaveAsL">Lưu thành…</span></button>
+    <button class="st-nav" data-pane="saveas"><em>💾</em><span data-i18n="stSaveAsL">Lưu thành…</span></button>
     <button class="st-nav" id="stPrint"><em>🖨</em><span data-i18n="stPrintL">In / Xuất PDF</span></button>
     <button class="st-nav" data-pane="lang"><em>🌐</em><span data-i18n="gLang">Ngôn ngữ</span></button>
     <div class="st-sep"></div>
@@ -1632,48 +1659,80 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
     <div style="flex:1"></div>
     <div class="st-ver" id="stVer"></div>
   </div>
+
   <div class="st-main">
 
     <div class="st-pane on" data-pane="home">
-      <div class="st-hello" id="stHello"></div>
+      <div class="st-h1" id="stHello"></div>
       <div class="st-sect" data-i18n="stNewSect">Tạo mới</div>
-      <button class="st-tile" id="stBlank">
-        <div class="st-thumb"></div>
-        <div class="st-tname" data-i18n="stBlank">Dự án trống</div>
-      </button>
-      <div class="st-cols">
-        <div>
-          <div class="st-sect" data-i18n="stRecent">Gần đây</div>
-          <div id="stRecentList" class="st-list"></div>
-        </div>
-        <div>
-          <div class="st-sect" data-i18n="stMine">📁 Dự án của tôi</div>
-          <div class="hint" data-i18n="stMineHint">Nơi tạm giữ dự án chưa lưu ra file — gồm cả bản còn dở khi app tắt đột ngột.</div>
-          <div id="stMineList" class="st-list"></div>
-        </div>
+      <div class="st-tiles">
+        <button class="st-tile" id="stBlank">
+          <div class="st-thumb"></div>
+          <div class="st-tname" data-i18n="stBlank">Dự án trống</div>
+        </button>
+      </div>
+      <div class="st-rule"></div>
+      <div class="st-tabs">
+        <button class="st-tab on" data-htab="recent" data-i18n="stRecent">Gần đây</button>
+        <button class="st-tab" data-htab="mine" data-i18n="stMine">Dự án của tôi</button>
+      </div>
+      <div class="st-head"><span class="ic">📄</span><span class="tx" data-i18n="stColName">Tên</span><span class="dt" data-i18n="stColDate">Ngày sửa</span></div>
+      <div id="stRecentList" class="st-list"></div>
+      <div id="stMineWrap" style="display:none">
+        <div class="st-hint" style="margin:8px 0" data-i18n="stMineHint">Nơi tạm giữ dự án chưa lưu ra file — gồm cả bản còn dở khi app tắt đột ngột.</div>
+        <div id="stMineList" class="st-list"></div>
       </div>
     </div>
 
     <div class="st-pane" data-pane="new">
-      <div class="st-hello" data-i18n="stNewSect">Tạo mới</div>
-      <button class="st-tile" id="stBlank2">
-        <div class="st-thumb"></div>
-        <div class="st-tname" data-i18n="stBlank">Dự án trống</div>
-      </button>
-      <div class="hint" style="margin-top:14px" data-i18n="stNewHint">Dự án hiện tại vẫn được giữ trong 📁 Dự án của tôi.</div>
+      <div class="st-h1" data-i18n="stNewSect">Tạo mới</div>
+      <div class="st-tiles">
+        <button class="st-tile" id="stBlank2">
+          <div class="st-thumb"></div>
+          <div class="st-tname" data-i18n="stBlank">Dự án trống</div>
+        </button>
+      </div>
+      <div class="st-rule"></div>
+      <div class="st-hint" data-i18n="stNewHint">Dự án hiện tại vẫn được giữ trong 📁 Dự án của tôi.</div>
     </div>
 
     <div class="st-pane" data-pane="open">
-      <div class="st-hello" data-i18n="stOpen">Mở</div>
-      <button class="st-langbtn" id="stBrowse" data-i18n="stBrowse">📂 Duyệt máy tính…</button>
-      <div id="stOpenList" class="st-list" style="margin-top:14px"></div>
+      <div class="st-h1" data-i18n="stOpen">Mở</div>
+      <div class="st-two">
+        <div class="st-places">
+          <button class="st-place on" id="stPlaceRecent"><em>🕘</em><span data-i18n="stRecent">Gần đây</span></button>
+          <div class="st-plcap" data-i18n="stThisPCCap">Nơi khác</div>
+          <button class="st-place" id="stBrowse"><em>📂</em><span data-i18n="stBrowse">Duyệt máy tính…</span></button>
+        </div>
+        <div class="st-right">
+          <div class="st-head"><span class="ic">📄</span><span class="tx" data-i18n="stColName">Tên</span><span class="dt" data-i18n="stColDate">Ngày sửa</span></div>
+          <div id="stOpenList" class="st-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="st-pane" data-pane="saveas">
+      <div class="st-h1" data-i18n="stSaveAsL">Lưu thành…</div>
+      <div class="st-two">
+        <div class="st-places">
+          <div class="st-plcap" data-i18n="stThisPCCap">Nơi khác</div>
+          <button class="st-place on" id="stBrowseSave"><em>📂</em><span data-i18n="stBrowse">Duyệt máy tính…</span></button>
+        </div>
+        <div class="st-right">
+          <div class="st-hint" data-i18n="stSaveAsHint">Chọn nơi lưu để ghi dự án ra một file .tdtc mới.</div>
+          <div class="st-grp" data-i18n="stRecentFolders">Thư mục đã dùng gần đây</div>
+          <div id="stSaveList" class="st-list"></div>
+        </div>
+      </div>
     </div>
 
     <div class="st-pane" data-pane="lang">
-      <div class="st-hello" data-i18n="gLang">Ngôn ngữ</div>
-      <button class="st-langbtn" data-lang="vi">Tiếng Việt</button>
-      <button class="st-langbtn" data-lang="en">English</button>
-      <div class="hint" style="margin-top:10px" data-i18n="stLangHint">Chỉ đổi giao diện — nội dung dự án bạn nhập không bị dịch.</div>
+      <div class="st-h1" data-i18n="gLang">Ngôn ngữ</div>
+      <div class="st-places">
+        <button class="st-place" data-lang="vi"><em>🇻🇳</em><span>Tiếng Việt</span></button>
+        <button class="st-place" data-lang="en"><em>🇬🇧</em><span>English</span></button>
+      </div>
+      <div class="st-hint" style="margin-top:14px" data-i18n="stLangHint">Chỉ đổi giao diện — nội dung dự án bạn nhập không bị dịch.</div>
     </div>
 
   </div>
@@ -7680,19 +7739,13 @@ function renderStart(){
   const vr=$("#stVer"); if(vr) vr.textContent=appVersionLabel();
 
   const rc=$("#stRecentList");
-  if(rc){
-    rc.innerHTML="";
-    const list=loadRecent();
-    if(!list.length){ const d=document.createElement("div"); d.className="st-empty"; d.textContent=t("stNoRecent"); rc.appendChild(d); }
-    else list.forEach(e=>rc.appendChild(stRow("📄", e.name||baseNameOf(e.path), e.path,
-      new Date(e.ts||Date.now()).toLocaleDateString("vi-VN"), ()=>openRecent(e.path))));
-  }
+  if(rc) stGroupRecent(rc, e=>openRecent(e.path));
 
   const mn=$("#stMineList");
   if(mn){
     mn.innerHTML="";
-    /* Chỉ mục của cửa sổ khác mới bị loại — còn lại hiện hết, kể cả mục từ
-       bản cũ, để không ai mất dự án chỉ vì đổi cách hiểu My Project. */
+    /* Chỉ mục đang mở ở cửa sổ khác mới bị loại — còn lại hiện hết, kể cả mục
+       từ bản cũ, để không ai mất dự án chỉ vì app đổi cách hiểu chỗ này. */
     const list=loadIndex().filter(e=>e && e.id!==currentId && !openElsewhere(e.id))
       .slice().sort((a,b)=>(b.updated||0)-(a.updated||0));
     if(!list.length){ const d=document.createElement("div"); d.className="st-empty"; d.textContent=t("stNoMine"); mn.appendChild(d); }
@@ -7707,16 +7760,23 @@ function stPane(name){
     b.classList.toggle("on", b.dataset.pane===name));
   document.querySelectorAll("#startOverlay .st-pane").forEach(p=>
     p.classList.toggle("on", p.dataset.pane===name));
+  if(name==="home") renderStart();
   if(name==="open") renderOpenPane();
-  if(name==="lang") document.querySelectorAll("#startOverlay .st-langbtn[data-lang]")
+  if(name==="saveas") renderSaveAsPane();
+  if(name==="lang") document.querySelectorAll("#startOverlay .st-place[data-lang]")
     .forEach(b=>b.classList.toggle("on", b.dataset.lang===uiLang));
 }
-/* Danh sách Mở: gom theo Hôm nay / Tuần trước / Cũ hơn như MS Project */
-function renderOpenPane(){
-  const box=$("#stOpenList"); if(!box) return;
+function stHomeTab(which){
+  document.querySelectorAll("#startOverlay .st-tab").forEach(b=>
+    b.classList.toggle("on", b.dataset.htab===which));
+  $("#stRecentList").style.display = which==="recent" ? "" : "none";
+  $("#stMineWrap").style.display   = which==="mine"   ? "" : "none";
+}
+/* Gom file theo Hôm nay / Tuần trước / Cũ hơn như MS Project */
+function stGroupRecent(box, onPick){
   box.innerHTML="";
   const list=loadRecent();
-  if(!list.length){ const d=document.createElement("div"); d.className="st-empty"; d.textContent=t("stNoRecent"); box.appendChild(d); return; }
+  if(!list.length){ const d=document.createElement("div"); d.className="st-empty"; d.textContent=t("stNoRecent"); box.appendChild(d); return 0; }
   const now=Date.now(), DAY=86400000;
   const grp=[[t("stToday"),[]],[t("stLastWeek"),[]],[t("stOlder"),[]]];
   list.forEach(e=>{
@@ -7727,8 +7787,29 @@ function renderOpenPane(){
     if(!items.length) return;
     const h=document.createElement("div"); h.className="st-grp"; h.textContent=cap; box.appendChild(h);
     items.forEach(e=>box.appendChild(stRow("📄", e.name||baseNameOf(e.path), e.path,
-      new Date(e.ts||now).toLocaleDateString("vi-VN"), ()=>openRecent(e.path))));
+      new Date(e.ts||now).toLocaleDateString("vi-VN"), ()=>onPick(e))));
   });
+  return list.length;
+}
+function renderOpenPane(){
+  const box=$("#stOpenList"); if(box) stGroupRecent(box, e=>openRecent(e.path));
+}
+/* Lưu thành: chọn lại thư mục đã dùng gần đây cho nhanh */
+function renderSaveAsPane(){
+  const box=$("#stSaveList"); if(!box) return;
+  box.innerHTML="";
+  const seen=new Set(), dirs=[];
+  loadRecent().forEach(e=>{
+    const p=String(e.path||""), i=Math.max(p.lastIndexOf("/"), p.lastIndexOf(String.fromCharCode(92)));
+    if(i<=0) return;
+    const d=p.slice(0,i);
+    if(seen.has(d)) return;
+    seen.add(d); dirs.push({dir:d, ts:e.ts});
+  });
+  if(!dirs.length){ const x=document.createElement("div"); x.className="st-empty"; x.textContent=t("stNoRecent"); box.appendChild(x); return; }
+  dirs.slice(0,8).forEach(d=>box.appendChild(stRow("📁", baseNameOf(d.dir)||d.dir, d.dir,
+    new Date(d.ts||Date.now()).toLocaleDateString("vi-VN"),
+    ()=>{ $("#btnFileSaveAs").click(); })));
 }
 function openStart(pane){ renderStart(); const o=$("#startOverlay"); if(o) o.classList.add("on"); stPane(pane||"home"); }
 function closeStart(){ const o=$("#startOverlay"); if(o) o.classList.remove("on"); }
@@ -7758,18 +7839,23 @@ function bindStart(){
   document.querySelectorAll("#startOverlay .st-nav[data-pane]").forEach(b=>{
     b.onclick=()=>stPane(b.dataset.pane);
   });
-  /* Các mục hành động bấm hộ nút tương ứng trong bảng ribbon File (bảng đó
-     vẫn còn trong DOM, chỉ bị ẩn) — khỏi phải nhân đôi logic lưu/in. */
-  on("#stSave", ()=>{ closeStart(); $("#btnFileSave").click(); });
-  on("#stSaveAs", ()=>{ closeStart(); $("#btnFileSaveAs").click(); });
-  on("#stPrint", ()=>{ closeStart(); $("#btnPrint").click(); });
-  on("#stBrowse", ()=>{ closeStart(); if(window._fileOps) window._fileOps.fileOpen(); });
+  document.querySelectorAll("#startOverlay .st-tab").forEach(b=>{
+    b.onclick=()=>stHomeTab(b.dataset.htab);
+  });
+  /* Lưu / Lưu thành / In: GIỮ NGUYÊN Backstage. Hộp thoại của chúng z-index
+     từ 60 trở lên nên tự nằm đè lên Backstage (55) — không cần đóng đi.
+     Trước đây phải đóng vì Backstage để 80, che mất hộp thoại. */
+  on("#stSave", ()=>{ $("#btnFileSave").click(); });
+  on("#stPrint", ()=>{ $("#btnPrint").click(); });
+  on("#stBrowse", ()=>{ if(window._fileOps) window._fileOps.fileOpen(); });
+  on("#stBrowseSave", ()=>{ $("#btnFileSaveAs").click(); });
+  on("#stPlaceRecent", ()=>renderOpenPane());
   on("#stCloseDoc", async ()=>{
     if(window.guardUnsavedAsync && !(await window.guardUnsavedAsync())) return;
-    newProject(); renderStart(); stPane("home");
+    newProject(); stPane("home");
   });
-  document.querySelectorAll("#startOverlay .st-langbtn[data-lang]").forEach(b=>{
-    b.onclick=()=>{ window.setLang(b.dataset.lang); renderStart(); stPane("lang"); };
+  document.querySelectorAll("#startOverlay .st-place[data-lang]").forEach(b=>{
+    b.onclick=()=>{ window.setLang(b.dataset.lang); stPane("lang"); };
   });
   on("#btnStart", ()=>openStart("home"));
   document.addEventListener("keydown", e=>{
@@ -8091,14 +8177,17 @@ en:{tabFile:"File",tabTask:"Task",tabProject:"Project",tabView:"View",tabFormat:
  bulkMsg:"{n} more project(s) are still only in 🗂 My Projects. Save them to .tdtc files?",
  bulkSub:"My Projects is a temporary holding area. Choosing No deletes these for good.",
  stBrand:"Progress",stHome:"Home",stNew:"New",stOpen:"Open",stHomeBtn:"🏠 Start screen",
- stNewSect:"New",stBlank:"Blank Project",stRecent:"Recent",stMine:"📁 My Projects",
+ stNewSect:"New",stBlank:"Blank Project",stRecent:"Recent",stMine:"My Projects",
  stMineHint:"Temporary holding area for projects not yet saved to a file — including work left over when the app closed unexpectedly.",
  stNoRecent:"No files opened yet.",stNoMine:"Nothing here — everything has been saved to a file.",
  stUnsaved:"not saved to a file yet",stOldItem:"from an earlier version",
  stMorning:"Good morning",stAfternoon:"Good afternoon",stEvening:"Good evening",
  stBlankDone:"📄 New blank project",
- stCloseDoc:"Close project",stSaveL:"Save",stSaveAsL:"Save as…",stPrintL:"Print / Export PDF",stBrowse:"📂 Browse this PC…",
+ stCloseDoc:"Close project",stSaveL:"Save",stSaveAsL:"Save as…",stPrintL:"Print / Export PDF",stBrowse:"Browse this PC…",
  stToday:"Today",stLastWeek:"Last week",stOlder:"Older",
+ stColName:"Name",stColDate:"Date modified",stThisPCCap:"Other locations",
+ stSaveAsHint:"Pick a location to write the project out as a new .tdtc file.",
+ stRecentFolders:"Recently used folders",
  stNewHint:"The current project stays in 📁 My Projects.",
  stLangHint:"Interface only — the project content you type is not translated.",
  recOneSub:"Yes loads the unsaved version. No opens the file as it is on disk and drops the unsaved copy.",
@@ -8175,14 +8264,17 @@ vi:{tabFile:"Tệp",tabTask:"Công việc",tabProject:"Dự án",tabView:"Hiển
  bulkMsg:"Còn {n} dự án nữa mới chỉ nằm trong 🗂 Dự án của tôi. Lưu ra file .tdtc chứ?",
  bulkSub:"🗂 Dự án của tôi chỉ là chỗ đỗ tạm. Chọn Không là xóa hẳn những dự án dưới đây.",
  stBrand:"Tiến độ",stHome:"Home",stNew:"New",stOpen:"Open",stHomeBtn:"🏠 Màn hình đầu",
- stNewSect:"Tạo mới",stBlank:"Dự án trống",stRecent:"Gần đây",stMine:"📁 Dự án của tôi",
+ stNewSect:"Tạo mới",stBlank:"Dự án trống",stRecent:"Gần đây",stMine:"Dự án của tôi",
  stMineHint:"Nơi tạm giữ dự án chưa lưu ra file — gồm cả bản còn dở khi app tắt đột ngột.",
  stNoRecent:"Chưa mở file nào.",stNoMine:"Trống — mọi dự án đều đã lưu ra file.",
  stUnsaved:"chưa lưu ra file",stOldItem:"từ bản trước",
  stMorning:"Chào buổi sáng",stAfternoon:"Chào buổi chiều",stEvening:"Chào buổi tối",
  stBlankDone:"📄 Dự án trống mới",
- stCloseDoc:"Đóng dự án",stSaveL:"Lưu",stSaveAsL:"Lưu thành…",stPrintL:"In / Xuất PDF",stBrowse:"📂 Duyệt máy tính…",
+ stCloseDoc:"Đóng dự án",stSaveL:"Lưu",stSaveAsL:"Lưu thành…",stPrintL:"In / Xuất PDF",stBrowse:"Duyệt máy tính…",
  stToday:"Hôm nay",stLastWeek:"Tuần trước",stOlder:"Cũ hơn",
+ stColName:"Tên",stColDate:"Ngày sửa",stThisPCCap:"Nơi khác",
+ stSaveAsHint:"Chọn nơi lưu để ghi dự án ra một file .tdtc mới.",
+ stRecentFolders:"Thư mục đã dùng gần đây",
  stNewHint:"Dự án hiện tại vẫn được giữ trong 📁 Dự án của tôi.",
  stLangHint:"Chỉ đổi giao diện — nội dung dự án bạn nhập không bị dịch.",
  recOneSub:"Chọn Có để nạp bản chưa lưu. Chọn Không thì mở đúng nội dung file trên đĩa và bỏ bản dở dang.",
@@ -8286,7 +8378,7 @@ window.APP = {
   colLabelOf, autoFitCol, autoFitRows, textPx, paintColSel, fmtStyleCss,
   switchProject, newProject, duplicateProject, deleteProject, loadIndex, saveIndex, prjKey, updateFileLabel, openExternalData,
   isDiskDirty, hasUnsavedWork, baseNameOf, openElsewhere, parkProject, resolveParked,
-  loadRecent, pushRecent, renderStart, openStart, closeStart, RECENTKEY, stPane, renderOpenPane, claimOpen, releaseOpen, loadOpenMap, OPENKEY, WINKEY, markUnsaved, clearUnsavedFlag, purgeProject, pendingRecovery, renderRecList, maybeShowRecovery, closeFlow, openExternalDataAsk, recoverOne, save,
+  loadRecent, pushRecent, renderStart, openStart, closeStart, RECENTKEY, stPane, renderOpenPane, renderSaveAsPane, stHomeTab, claimOpen, releaseOpen, loadOpenMap, OPENKEY, WINKEY, markUnsaved, clearUnsavedFlag, purgeProject, pendingRecovery, renderRecList, maybeShowRecovery, closeFlow, openExternalDataAsk, recoverOne, save,
   get currentId(){ return currentId; },
   get colSel(){ return colSel; },
   selectCols(arr){ colSel=new Set(arr); paintColSel(); },

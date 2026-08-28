@@ -341,11 +341,11 @@ exports.run = async function (t) {
 
     /* ---------- Màn hình đầu ---------- */
     t.case("Backstage có đủ mục rail và các vùng nội dung");
-    ["#startOverlay", "#stBack", "#stSave", "#stSaveAs", "#stPrint", "#stCloseDoc",
+    ["#startOverlay", "#stBack", "#stSave", "#stPrint", "#stCloseDoc",
       "#stBlank", "#stRecentList", "#stMineList", "#stHello", "#stVer",
-      "#stOpenList", "#stBrowse"]
+      "#stOpenList", "#stBrowse", "#stBrowseSave", "#stSaveList"]
       .forEach(sel => t.ok(!!$(sel), "có " + sel));
-    ["home", "new", "open", "lang"].forEach(p => {
+    ["home", "new", "open", "saveas", "lang"].forEach(p => {
       t.ok(!!win.document.querySelector('#startOverlay .st-nav[data-pane="' + p + '"]'), "có mục rail " + p);
       t.ok(!!win.document.querySelector('#startOverlay .st-pane[data-pane="' + p + '"]'), "có vùng " + p);
     });
@@ -354,6 +354,16 @@ exports.run = async function (t) {
     t.ok(!!win.document.querySelector('.rtabs button[data-tab="file"]'), "vẫn có tab File");
     win.document.querySelector('.rtabs button[data-tab="file"]').onclick();
     t.ok($("#startOverlay").classList.contains("on"), "Backstage đã mở");
+
+    t.case("Lưu / In KHÔNG đóng Backstage — hộp thoại của chúng nằm đè lên");
+    /* Backstage để z-index 55, thấp hơn mọi hộp thoại (thấp nhất 60), nên
+       không phải đóng nó đi mới thấy hộp Lưu/In. Trước đây để 80 nên phải
+       đóng, người dùng thấy như bị nhảy về giao diện dự án. */
+    const css = Array.from(win.document.querySelectorAll("style")).map(e => e.textContent).join(" ");
+    const decl = css.slice(css.indexOf("#startOverlay{"));
+    const zi = +decl.slice(decl.indexOf("z-index:") + 8).split(";")[0];
+    t.ok(zi > 0, "có khai báo z-index cho Backstage: " + zi);
+    t.ok(zi < 60, "Backstage (" + zi + ") phải THẤP hơn hộp thoại thấp nhất (60)");
 
     t.case("chuyển qua lại giữa các vùng");
     APP.stPane("open");
