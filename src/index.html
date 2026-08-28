@@ -373,8 +373,11 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
 .pr-page{break-inside:avoid;page-break-inside:avoid}
 @media print{
   html,body{height:auto;overflow:visible;background:#fff}
-  body>header,#main,#overlay,#printOverlay,#prevOverlay,#msg{display:none!important}
-  #printRoot{display:block}
+  /* Ẩn TẤT CẢ rồi chừa lại đúng #printRoot. Trước đây liệt kê tay từng phần
+     tử cần ẩn, nên mỗi lần thêm một hộp thoại mới là một lần có thể quên —
+     #statusBar bị sót và in ra thừa hẳn một trang chỉ có thanh trạng thái. */
+  body>*{display:none!important}
+  body>#printRoot{display:block!important}
 }
 #prevOverlay{position:fixed;inset:0;background:#454e57;display:none;flex-direction:column;z-index:70}
 .pv-top{display:flex;align-items:center;gap:10px;background:#22313f;color:#fff;padding:7px 14px;flex:0 0 auto}
@@ -5562,6 +5565,15 @@ function bindUI(){
 
   // ===== Phím tắt toàn cục =====
   window.addEventListener("keydown", e=>{
+    /* Đang gõ trong một ô nhập KHÔNG thuộc bảng công việc — hộp Page Setup
+       (Header / Footer / Legend / lề), ô Bắt đầu trên ribbon, thanh Tìm kiếm…
+       — thì mọi phím thuộc về ô đó. Thiếu chốt này, gõ một ký tự bất kỳ sẽ
+       rơi xuống nhánh "đang chọn mà gõ ký tự → vào chế độ gõ" bên dưới và
+       con trỏ NHẢY VỀ BẢNG CÔNG VIỆC giữa chừng. */
+    const tg=e.target;
+    if(tg && tg.closest && !tg.closest("#gridBody")
+       && (/^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName||"")
+           || tg.closest('[contenteditable="true"]'))) return;
     const editing=isEditingCell(); // chỉ tính là "đang gõ" khi ô đã mở bằng double-click/F2
     const mod=e.ctrlKey||e.metaKey;
     if(mod && e.key.toLowerCase()==="s"){

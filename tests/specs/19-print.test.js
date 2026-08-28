@@ -145,5 +145,65 @@ exports.run = function (t) {
     t.ok(!!dp.margins && isFinite(dp.margins.t), "có lề mặc định");
     t.ok(!!APP.state.print.cols, "danh sách cột in được mergeDefaults bổ sung");
     t.ok(!!dp.hdr && !!dp.ftr, "có cấu hình đầu trang và chân trang");
+
+    /* Thanh trạng thái từng bị sót trong danh sách ẩn khi in, và in ra thừa
+       hẳn một trang chỉ có "40 dòng · Auto fit · Fit all · x ngày/cột".
+       Nay ẩn theo cách chặn hết rồi chừa lại, nên thêm hộp thoại mới không
+       tái phát được nữa. */
+    t.case("khi in chỉ #printRoot được hiện, mọi thứ khác bị ẩn");
+    const doc = APP.__dom.window.document;
+    const win = APP.__dom.window;
+    const printCss = Array.from(doc.querySelectorAll("style"))
+      .map(e => e.textContent).join(String.fromCharCode(10))
+      .split("@media print{")[1] || "";
+    t.ok(printCss.indexOf("body>*{display:none!important}") >= 0,
+      "chặn hết con trực tiếp của body");
+    t.ok(printCss.indexOf("body>#printRoot{display:block!important}") >= 0,
+      "rồi chừa lại đúng #printRoot");
+    t.ok(printCss.indexOf("body>header,#main,#overlay") < 0,
+      "không còn danh sách ẩn liệt kê tay — đó là chỗ đã quên #statusBar");
+
+    t.case("thanh trạng thái và các hộp thoại đều là con trực tiếp của body");
+    /* Nếu một ngày nào đó chúng bị bọc thêm một lớp div thì luật body>* hết
+       tác dụng — canh luôn ở đây. */
+    ["statusBar", "printOverlay", "prevOverlay", "svOverlay", "recOverlay", "updOverlay"]
+      .forEach(id => {
+        const el = doc.getElementById(id);
+        t.ok(el && el.parentElement === doc.body, "#" + id + " là con trực tiếp của body");
+      });
+    t.ok(doc.getElementById("printRoot").parentElement === doc.body,
+      "#printRoot cũng vậy, nếu không luật chừa lại sẽ trượt");
+
+    /* Gõ một ký tự vào ô của hộp Page Setup từng rơi xuống nhánh "đang chọn
+       mà gõ ký tự" của bộ bắt phím toàn cục, làm con trỏ nhảy về bảng công
+       việc giữa chừng — gõ Header/Footer/Legend đều dính. */
+    t.case("gõ trong hộp Page Setup KHÔNG kéo con trỏ về bảng công việc");
+    makeState(APP, { tasks: [{ name: "Đào móng", dur: 3 }, { name: "Đổ bê tông", dur: 2 }] });
+    APP.renderAll();
+    const editingCount = () => doc.querySelectorAll("#gridBody .editing").length;
+    const press = (el, key) => el.dispatchEvent(
+      new win.KeyboardEvent("keydown", { key: key, bubbles: true, cancelable: true }));
+
+    [["#phL", "Header trái"], ["#phC", "Header giữa"], ["#phR", "Header phải"],
+     ["#pfBoxText", "hộp chữ Footer"], ["#pmT", "ô lề trên"], ["#rbStart", "ô Bắt đầu trên ribbon"]]
+      .forEach(([sel, ten]) => {
+        const el = doc.querySelector(sel);
+        t.ok(!!el, "có ô " + sel);
+        if (!el) return;
+        APP.focusCell(0, 1);                       // con trỏ đang ở bảng
+        doc.querySelectorAll("#gridBody .editing").forEach(x => x.classList.remove("editing"));
+        press(el, "A");
+        t.eq(editingCount(), 0, "gõ vào " + ten + " không mở ô nào trong bảng");
+      });
+
+    t.case("nhưng gõ trong chính bảng thì vẫn vào chế độ gõ như cũ");
+    APP.focusCell(0, 1);
+    doc.querySelectorAll("#gridBody .editing").forEach(x => x.classList.remove("editing"));
+    const cellInput = doc.querySelector("#gridBody tr td input, #gridBody tr td textarea");
+    t.ok(!!cellInput, "tìm được ô nhập trong bảng");
+    if (cellInput) {
+      press(cellInput, "A");
+      t.ok(editingCount() > 0, "chốt mới không được chặn nhầm phím của bảng");
+    }
   } finally { closeApp(APP); }
 };
