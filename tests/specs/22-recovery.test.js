@@ -26,6 +26,10 @@ exports.run = async function (t) {
   const $ = sel => win.document.querySelector(sel);
   /* Bản trình duyệt: không có cầu desktop, closeFlow vẫn chạy đủ các nhánh. */
   const vis = sel => ($(sel) ? $(sel).style.display : "(không có)");
+  /* Mục chỉ có dòng danh mục mà không có nội dung sẽ bị pendingRecovery() lọc
+     ra — dựng cả nội dung cho đúng đời thật. */
+  const seed = ids => ids.forEach(id => LS.setItem("tiendo_prj_" + id,
+    JSON.stringify({ name: id, tasks: [{ name: "Việc của " + id }] })));
 
   try {
     t.case("hộp thoại mới có mặt trong DOM");
@@ -203,6 +207,7 @@ exports.run = async function (t) {
       { id: "pC", name: "Dự án C", updated: 3, srcUrl: "C:/d/C.tdtc" },
       { id: "pD", name: "Dự án D", updated: 4, unsaved: 1 }
     ]);
+    seed(["pA", "pB", "pC", "pD"]);
     t.eq(APP.pendingRecovery().length, 3, "chỉ C bị loại vì thiếu cờ; D không có file vẫn được cứu");
     t.eq(APP.renderRecList(), 3, "danh sách vẽ 3 dòng");
     t.eq(win.document.querySelectorAll("#recList .recRow").length, 3, "mỗi mục một dòng");
@@ -228,6 +233,7 @@ exports.run = async function (t) {
       { id: "pB", name: "B", updated: 2, srcUrl: "C:/d/B.tdtc", unsaved: 1 },
       { id: "pC", name: "C", updated: 3, srcUrl: "C:/d/C.tdtc", unsaved: 1 }
     ]);
+    seed(["pA", "pB", "pC"]);
     APP.renderRecList();
     const rows = () => Array.from(win.document.querySelectorAll("#recList .recRow"));
     t.eq(rows().length, 3);
@@ -374,6 +380,24 @@ exports.run = async function (t) {
     t.ok($("#startOverlay").classList.contains("on"), "đã mở");
     APP.closeStart();
     t.ok(!$("#startOverlay").classList.contains("on"), "đã đóng");
+
+
+    t.case("dự án RỖNG không bị lôi vào danh sách phục hồi");
+    /* Cờ unsaved có thể còn sót từ phiên mà người dùng gõ rồi xóa hết.
+       Mời cứu một dự án trống là làm phiền, mỗi lần khởi động một lần. */
+    LS.clear();
+    LS.setItem("tiendo_prj_pEmpty", JSON.stringify({ name: "Dự án mới", tasks: [{ name: "" }] }));
+    LS.setItem("tiendo_prj_pFull", JSON.stringify({ name: "Có việc", tasks: [{ name: "Đào móng" }] }));
+    APP.saveIndex([
+      { id: "pEmpty", name: "Dự án mới", updated: 1, unsaved: 1 },
+      { id: "pFull", name: "Có việc", updated: 2, unsaved: 1 }
+    ]);
+    t.eq(APP.pendingRecovery().map(e => e.id), ["pFull"], "chỉ mời cứu cái có việc thật");
+    t.ok(LS.getItem("tiendo_prj_pEmpty") !== null, "nhưng KHÔNG tự xóa của người ta");
+    t.eq(APP.stateHasContentOf(null), false, "state không đọc được thì coi như rỗng");
+    t.eq(APP.stateHasContentOf({ tasks: [{ name: "  " }] }), false, "toàn khoảng trắng vẫn là rỗng");
+    t.eq(APP.stateHasContentOf({ tasks: [], customCols: [{ id: "cc1" }] }), true,
+      "có cột tùy chỉnh cũng là có nội dung");
 
   } finally { closeApp(APP); }
 };

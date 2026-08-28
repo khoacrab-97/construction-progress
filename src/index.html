@@ -1912,12 +1912,14 @@ function startFreshSession(){
   window._docDirty=false;
   tellPath(null);
 }
-function stateHasContent(){
-  if(state.tasks && state.tasks.some(t=>String((t&&t.name)||"").trim())) return true;
-  if(state.info && Object.values(state.info).some(v=>typeof v==="string" && v.trim())) return true;
-  if(state.customCols && state.customCols.length) return true;
+function stateHasContentOf(st){
+  if(!st) return false;
+  if(st.tasks && st.tasks.some(t=>String((t&&t.name)||"").trim())) return true;
+  if(st.info && Object.values(st.info).some(v=>typeof v==="string" && v.trim())) return true;
+  if(st.customCols && st.customCols.length) return true;
   return false;
 }
+function stateHasContent(){ return stateHasContentOf(state); }
 /* ---- thao tác dự án (như phần mềm: nhiều file riêng) ---- */
 function resetSession(){
   window._fresh=false;
@@ -2020,7 +2022,13 @@ function purgeProject(id){
   }catch(err){}
 }
 function pendingRecovery(){
-  return loadIndex().filter(e => e && e.unsaved && !openElsewhere(e.id));
+  return loadIndex().filter(e => {
+    if(!e || !e.unsaved || openElsewhere(e.id)) return false;
+    /* Mục rỗng thì đừng lôi ra hỏi: cờ unsaved có thể còn sót từ một phiên
+       mà người dùng gõ rồi xóa hết. Mời "cứu" một dự án trống là làm phiền. */
+    let st=null; try{ st=JSON.parse(LS.get(prjKey(e.id))); }catch(err){}
+    return stateHasContentOf(st);
+  });
 }
 /* Hộp Có/Không dùng chung */
 function askYesNo(msg, sub, icon){
@@ -8148,7 +8156,7 @@ window.APP = {
   addTask, delTask, indent, moveBlock, renderAll, fromISO, toISO, fmtDMY, parseDMY,
   isSummary, blockEnd, buildTimeline, resourceProfile,
   buildPrint, buildPrintTable, buildHistoPrintSvg, lastPrintRow, prToken, defaultPrint, printableSizePx, printTableWidth,
-  sectShow, sectText, normPrintSect, normFtr, ftrHeightPx, sideStyle, mergeDefaults, stateHasContent,
+  sectShow, sectText, normPrintSect, normFtr, ftrHeightPx, sideStyle, mergeDefaults, stateHasContent, stateHasContentOf,
   sanRT, escKeepBIU, rtRead, rtWrite, focusCell, selectRange, fillDown, edgeCell,
   applyPaste, copyTableTSV, labelVal, defaultBarStyle, defaultFont, applyFont, activePrintCols, measureRows,
   setView, fitAll, colFieldAt, printCols, renderHistoFull, fmtDM, renderGantt,
