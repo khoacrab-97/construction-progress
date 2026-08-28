@@ -161,7 +161,23 @@ thì người dùng tự chọn đè lên nó.
 `isDiskDirty()` tính cả dự án **chưa từng ghi ra `.tdtc`** (`_docDirty` \+
 `stateHasContent()`); trước đây nhánh này luôn "sạch" nên tắt app không hỏi gì.
 
-### 3.7 Màn hình đầu (Home / New / Open)
+### 3.7 Backstage (tab File) và hàng tiêu đề
+
+Bấm tab **File** mở màn hình Backstage toàn màn hình kiểu MS Project, thay vì
+đổi bảng ribbon. Rail trái: **← · Home · New · Open · Lưu · Lưu thành · In ·
+Ngôn ngữ · Đóng dự án**. Mở app không kèm file cũng vào thẳng màn này.
+
+Bảng ribbon `data-tab="file"` vẫn **còn trong DOM nhưng bị ẩn** — rất nhiều chỗ
+bind theo id các nút trong đó (`#btnFileSave`, `#uiLang`…), nên Backstage bấm hộ
+chúng thay vì nhân đôi logic. Xóa bảng đó đi là hàng loạt `onclick` trỏ vào null.
+
+Hàng tiêu đề `.hrow0` chia lưới `1fr auto 1fr`: QAT (hoàn tác/làm lại) bên trái,
+**tên app – tên dự án ở giữa**, ngày bắt đầu và nhãn phiên bản bên phải. Tab
+ribbon xuống hàng riêng `.hrow1`, dồn trái.
+
+---
+
+### 3.7b Màn hình đầu (Home / New / Open)
 
 Mở app không kèm file thì hiện màn hình kiểu Backstage của MS Project: rail
 trái **Home · New · Open**, bên phải **Dự án trống**, **Gần đây** và
@@ -539,7 +555,7 @@ song ngữ, biểu đồ nhân lực.
 **Lưu \& phục hồi** — nhắc lưu kiểu MS Project cho cả dự án chưa có file, hộp
 phục hồi sau khi app đóng bất thường, không còn cảnh file cũ đè bản mới (xem 3.6).
 
-**Kiểm thử** — **22 bộ test, 913 assertion**, chạy trên jsdom, nằm trong `tests/`.
+**Kiểm thử** — **22 bộ test, 937 assertion**, chạy trên jsdom, nằm trong `tests/`.
 Chạy bằng `npm test`. Xem `tests/README.md` để biết cách viết thêm và quy trình
 chụp ảnh SVG.
 

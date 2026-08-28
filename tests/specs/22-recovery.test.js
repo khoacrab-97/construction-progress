@@ -340,10 +340,43 @@ exports.run = async function (t) {
     t.eq(win._srcUrl, null, "vẫn chưa gắn file nào — Lưu sẽ mở hộp Lưu thành");
 
     /* ---------- Màn hình đầu ---------- */
-    t.case("màn hình đầu có đủ Home / New / Open và ba vùng nội dung");
-    ["#startOverlay", "#stNavHome", "#stNavNew", "#stNavOpen",
-      "#stBlank", "#stRecentList", "#stMineList", "#stHello", "#stVer", "#btnStart"]
+    t.case("Backstage có đủ mục rail và các vùng nội dung");
+    ["#startOverlay", "#stBack", "#stSave", "#stSaveAs", "#stPrint", "#stCloseDoc",
+      "#stBlank", "#stRecentList", "#stMineList", "#stHello", "#stVer",
+      "#stOpenList", "#stBrowse"]
       .forEach(sel => t.ok(!!$(sel), "có " + sel));
+    ["home", "new", "open", "lang"].forEach(p => {
+      t.ok(!!win.document.querySelector('#startOverlay .st-nav[data-pane="' + p + '"]'), "có mục rail " + p);
+      t.ok(!!win.document.querySelector('#startOverlay .st-pane[data-pane="' + p + '"]'), "có vùng " + p);
+    });
+
+    t.case("bấm tab File mở Backstage chứ không đổi bảng ribbon");
+    t.ok(!!win.document.querySelector('.rtabs button[data-tab="file"]'), "vẫn có tab File");
+    win.document.querySelector('.rtabs button[data-tab="file"]').onclick();
+    t.ok($("#startOverlay").classList.contains("on"), "Backstage đã mở");
+
+    t.case("chuyển qua lại giữa các vùng");
+    APP.stPane("open");
+    t.ok(win.document.querySelector('#startOverlay .st-pane[data-pane="open"]').classList.contains("on"),
+      "vùng Mở đang hiện");
+    t.ok(!win.document.querySelector('#startOverlay .st-pane[data-pane="home"]').classList.contains("on"),
+      "vùng Home đã ẩn");
+    APP.stPane("home");
+    t.ok(win.document.querySelector('#startOverlay .st-pane[data-pane="home"]').classList.contains("on"));
+    APP.closeStart();
+
+    t.case("vùng Mở gom file theo Hôm nay / Tuần trước / Cũ hơn");
+    LS.clear();
+    const DAY = 86400000;
+    LS.setItem("tiendo_recent_v1", JSON.stringify([
+      { path: "C:/d/homnay.tdtc", name: "homnay.tdtc", ts: Date.now() - 3600e3 },
+      { path: "C:/d/tuantruoc.tdtc", name: "tuantruoc.tdtc", ts: Date.now() - 3 * DAY },
+      { path: "C:/d/cu.tdtc", name: "cu.tdtc", ts: Date.now() - 40 * DAY }
+    ]));
+    APP.renderOpenPane();
+    const caps = Array.from(win.document.querySelectorAll("#stOpenList .st-grp")).map(e => e.textContent);
+    t.eq(caps.length, 3, "ba nhóm thời gian: " + caps.join(" / "));
+    t.eq(win.document.querySelectorAll("#stOpenList .st-item").length, 3, "đủ ba file");
 
     t.case("danh sách file mở gần đây");
     LS.clear();

@@ -60,9 +60,18 @@ exports.run = function (t) {
     const badge = doc.querySelector("#appVer");
     t.ok(!!badge, "có ô #appVer");
     t.ok(/Ver \d{2}\.\d{2}\.\d{3}/.test(badge.textContent), "nội dung: " + badge.textContent);
-    const row = badge.closest(".hrow1");
-    t.ok(!!row, "nằm trong hàng ribbon trên cùng");
-    t.eq(row.lastElementChild.id, "appVer", "là phần tử ngoài cùng bên phải của hàng");
+    /* Hàng trên cùng nay là .hrow0: QAT trái · tên app – tên dự án ở giữa ·
+       thông tin phải. Các tab ribbon xuống hàng riêng, dồn trái. */
+    const row = badge.closest(".hrow0");
+    t.ok(!!row, "nằm trong hàng tiêu đề trên cùng");
+    const right = badge.closest(".h-r");
+    t.ok(!!right, "thuộc nhóm bên phải");
+    t.eq(right.lastElementChild.id, "appVer", "là phần tử ngoài cùng bên phải");
+    const ttl = doc.querySelector("#hTitle");
+    t.ok(!!ttl, "có ô tên app – tên dự án ở giữa");
+    t.eq(ttl.parentElement.className, "hrow0", "nằm ngay trong hàng tiêu đề");
+    t.ok(!!doc.querySelector(".hrow1 .rtabs"), "tab ribbon xuống hàng riêng");
+    t.ok(!doc.querySelector(".hrow1 #appVer"), "hàng tab không còn chứa nhãn phiên bản");
 
     t.case("sự kiện 'có bản mới' hỏi người dùng trước, không tự tải");
     APP.handleDesktopUpdateEvent({ type: "available", version: "26.8.2" });

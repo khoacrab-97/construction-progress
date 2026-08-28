@@ -40,7 +40,15 @@ header{
   background:var(--panel);border-bottom:2px solid var(--ink);
   display:flex;flex-direction:column;
 }
-.hrow1{display:flex;align-items:center;gap:4px;padding:4px 12px 0 12px}
+/* Hàng tiêu đề: QAT trái · tên app – tên dự án ở GIỮA · thông tin phải.
+   Dùng lưới 1fr auto 1fr để tên luôn nằm chính giữa dù hai bên rộng khác nhau. */
+.hrow0{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+  gap:8px;padding:4px 12px 2px 12px}
+.hrow0 .h-l{display:flex;align-items:center;gap:4px}
+.hrow0 .h-r{display:flex;align-items:center;gap:4px;justify-content:flex-end}
+.htitle{font-size:12.5px;color:var(--ink);font-weight:600;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;max-width:46vw;text-align:center}
+.hrow1{display:flex;align-items:center;gap:4px;padding:0 12px 0 12px}
 /* Nhãn phiên bản: góc phải hàng trên cùng, ngay dưới nút thu nhỏ cửa sổ */
 #appVer{font-size:10.5px;color:var(--ink-soft);white-space:nowrap;margin-left:12px;
   font-variant-numeric:tabular-nums;letter-spacing:.2px;
@@ -63,6 +71,10 @@ header .brand span{font-size:10.5px;color:var(--ink-soft)}
   padding:0 0 3px;border-bottom:1px dotted var(--line);margin-bottom:1px;
   letter-spacing:.4px;font-weight:600;text-transform:uppercase}
 .tgroup button{min-height:26px}
+/* Bảng ribbon File nay do Backstage thay thế. GIỮ trong DOM vì rất nhiều chỗ
+   bind theo id các nút trong đó (#btnFileSave, #uiLang…) — Backstage bấm hộ
+   chúng. Xóa đi là hàng loạt onclick trỏ vào null. */
+.rpanel[data-tab="file"]{display:none!important}
 .rpanel[data-tab="file"] button{min-height:40px;padding:0 14px;font-size:13px}
 input[type=color].cbtn{width:30px;height:26px;padding:1px 2px;border:1px solid var(--line-strong);border-radius:5px;cursor:pointer;background:#fff}
 #holCal th{background:#eef2f5;border:1px solid var(--line);padding:3px 0;font-size:11px}
@@ -341,16 +353,26 @@ textarea{width:100%;height:90px;border:1px solid var(--line-strong);border-radiu
 #startOverlay{position:fixed;inset:0;display:none;z-index:80;background:var(--paper);
   font-family:"Segoe UI",Arial,sans-serif}
 #startOverlay.on{display:flex}
-.st-rail{width:132px;flex:0 0 auto;background:#3a4550;color:#e6ecf1;
-  display:flex;flex-direction:column;padding:14px 0}
-.st-brand{font-size:15px;font-weight:700;padding:6px 16px 18px;color:#fff}
-.st-nav{display:flex;flex-direction:column;align-items:center;gap:4px;
-  background:none;border:0;color:#cfd8df;padding:14px 0;cursor:pointer;font-size:12.5px;
-  border-radius:0;width:100%;font-family:inherit}
+.st-rail{width:164px;flex:0 0 auto;background:#3a4550;color:#e6ecf1;
+  display:flex;flex-direction:column;padding:10px 0}
+.st-back{width:34px;height:34px;margin:2px 0 12px 14px;border-radius:50%;
+  background:#2f3945;border:0;color:#e6ecf1;font-size:17px;cursor:pointer;font-family:inherit}
+.st-back:hover{background:var(--accent);color:#fff;border-color:transparent}
+.st-nav{display:flex;align-items:center;gap:10px;
+  background:none;border:0;color:#cfd8df;padding:9px 16px;cursor:pointer;font-size:13px;
+  border-radius:0;width:100%;font-family:inherit;text-align:left}
 .st-nav:hover{background:#46525f;color:#fff;border-color:transparent}
 .st-nav.on{background:var(--accent);color:#fff}
-.st-nav span{font-size:12.5px}
-.st-nav em{font-style:normal;font-size:20px;line-height:1}
+.st-nav span{font-size:13px}
+.st-nav em{font-style:normal;font-size:15px;line-height:1;width:18px;text-align:center}
+.st-sep{height:1px;background:#4d5865;margin:8px 14px}
+.st-pane{display:none}
+.st-pane.on{display:block}
+.st-grp{font-size:11.5px;color:var(--ink-soft);font-weight:600;
+  text-transform:uppercase;letter-spacing:.4px;margin:18px 0 6px}
+.st-langbtn{display:block;width:260px;text-align:left;margin-bottom:8px;padding:10px 14px;
+  font-size:13px;font-family:inherit;border:1px solid var(--line-strong);border-radius:6px;background:#fff;cursor:pointer}
+.st-langbtn.on{border-color:var(--accent);background:#eaf1f8;font-weight:600}
 .st-ver{font-size:11px;color:#8fa0ae;text-align:center;padding:8px 6px}
 .st-main{flex:1;overflow:auto;padding:26px 34px 34px}
 .st-hello{font-size:26px;font-weight:300;color:var(--ink);margin-bottom:22px}
@@ -430,14 +452,25 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
 <body>
 
 <header>
-  <div class="hrow1">
-    <button id="updBtn" style="display:none;margin-right:10px;align-self:center;
-      background:#e8f4e8;border:1px solid #4a9;border-radius:6px;color:#186;font-weight:700;cursor:pointer;padding:3px 10px"
-      title="Có phiên bản mới — bấm để tải">⬆ Update</button>
-    <div class="qat" style="margin-left:14px">
-      <button id="btnUndo" title="Hoàn tác (Ctrl+Z)">↶</button>
-      <button id="btnRedo" title="Làm lại (Ctrl+Y)">↷</button>
+  <div class="hrow0">
+    <div class="h-l">
+      <div class="qat">
+        <button id="btnUndo" title="Hoàn tác (Ctrl+Z)">↶</button>
+        <button id="btnRedo" title="Làm lại (Ctrl+Y)">↷</button>
+      </div>
+      <button id="updBtn" style="display:none;margin-left:8px;
+        background:#e8f4e8;border:1px solid #4a9;border-radius:6px;color:#186;font-weight:700;cursor:pointer;padding:3px 10px"
+        title="Có phiên bản mới — bấm để tải">⬆ Update</button>
     </div>
+    <div class="htitle" id="hTitle"></div>
+    <div class="h-r">
+      <span id="fileLabel" style="font-size:11px;color:var(--accent-dark);white-space:nowrap;margin-right:8px"></span>
+      <label style="font-size:11.5px;color:var(--ink-soft);white-space:nowrap" data-i18n="rbStartL">Bắt đầu:</label>
+      <input type="text" id="rbStart" placeholder="dd/mm/yyyy" style="width:96px;height:24px;font-size:11.5px;border:1px solid var(--line-strong);border-radius:5px;padding:1px 6px" title="Ngày bắt đầu dự án — gõ dd/mm/yyyy hoặc bấm 📅"><button class="icon" id="rbStartCal" title="Chọn ngày trong lịch" style="height:24px">📅</button>
+      <span id="appVer" title="Phiên bản đang chạy — Ver [2 số cuối năm].[tháng].[lần cập nhật trong tháng]"></span>
+    </div>
+  </div>
+  <div class="hrow1">
     <div class="rtabs">
       <button data-tab="file" data-i18n="tabFile">File</button>
       <button data-tab="home" class="on" data-i18n="tabTask">Task</button>
@@ -446,11 +479,6 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
       <button data-tab="format" data-i18n="tabFormat">Format Gantt Chart</button>
       <button data-tab="help" data-i18n="tabHelp">Help</button>
     </div>
-    <span style="flex:1"></span>
-    <span id="fileLabel" style="font-size:11px;color:var(--accent-dark);white-space:nowrap;margin-right:8px"></span>
-    <label style="font-size:11.5px;color:var(--ink-soft);white-space:nowrap" data-i18n="rbStartL">Bắt đầu:</label>
-    <input type="text" id="rbStart" placeholder="dd/mm/yyyy" style="width:96px;height:24px;font-size:11.5px;border:1px solid var(--line-strong);border-radius:5px;padding:1px 6px" title="Ngày bắt đầu dự án — gõ dd/mm/yyyy hoặc bấm 📅"><button class="icon" id="rbStartCal" title="Chọn ngày trong lịch" style="height:24px">📅</button>
-    <span id="appVer" title="Phiên bản đang chạy — Ver [2 số cuối năm].[tháng].[lần cập nhật trong tháng]"></span>
   </div>
   <div class="rpanels">
 
@@ -1590,31 +1618,64 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
 <!-- Màn hình đầu: Home / New / Open -->
 <div id="startOverlay">
   <div class="st-rail">
-    <div class="st-brand" data-i18n="stBrand">Tiến độ</div>
-    <button class="st-nav on" id="stNavHome"><em>🏠</em><span data-i18n="stHome">Home</span></button>
-    <button class="st-nav" id="stNavNew"><em>📄</em><span data-i18n="stNew">New</span></button>
-    <button class="st-nav" id="stNavOpen"><em>📂</em><span data-i18n="stOpen">Open</span></button>
+    <button class="st-back" id="stBack" title="Quay lại">←</button>
+    <button class="st-nav on" data-pane="home"><em>🏠</em><span data-i18n="stHome">Home</span></button>
+    <button class="st-nav" data-pane="new"><em>📄</em><span data-i18n="stNew">New</span></button>
+    <button class="st-nav" data-pane="open"><em>📂</em><span data-i18n="stOpen">Open</span></button>
+    <div class="st-sep"></div>
+    <button class="st-nav" id="stSave"><em>💾</em><span data-i18n="stSaveL">Lưu</span></button>
+    <button class="st-nav" id="stSaveAs"><em>💾</em><span data-i18n="stSaveAsL">Lưu thành…</span></button>
+    <button class="st-nav" id="stPrint"><em>🖨</em><span data-i18n="stPrintL">In / Xuất PDF</span></button>
+    <button class="st-nav" data-pane="lang"><em>🌐</em><span data-i18n="gLang">Ngôn ngữ</span></button>
+    <div class="st-sep"></div>
+    <button class="st-nav" id="stCloseDoc"><em>✕</em><span data-i18n="stCloseDoc">Đóng dự án</span></button>
     <div style="flex:1"></div>
     <div class="st-ver" id="stVer"></div>
   </div>
   <div class="st-main">
-    <div class="st-hello" id="stHello"></div>
-    <div class="st-sect" data-i18n="stNewSect">Tạo mới</div>
-    <button class="st-tile" id="stBlank">
-      <div class="st-thumb"></div>
-      <div class="st-tname" data-i18n="stBlank">Dự án trống</div>
-    </button>
-    <div class="st-cols">
-      <div>
-        <div class="st-sect" data-i18n="stRecent">Gần đây</div>
-        <div id="stRecentList" class="st-list"></div>
-      </div>
-      <div>
-        <div class="st-sect" data-i18n="stMine">📁 Dự án của tôi</div>
-        <div class="hint" data-i18n="stMineHint">Nơi tạm giữ dự án chưa lưu ra file — gồm cả bản còn dở khi app tắt đột ngột.</div>
-        <div id="stMineList" class="st-list"></div>
+
+    <div class="st-pane on" data-pane="home">
+      <div class="st-hello" id="stHello"></div>
+      <div class="st-sect" data-i18n="stNewSect">Tạo mới</div>
+      <button class="st-tile" id="stBlank">
+        <div class="st-thumb"></div>
+        <div class="st-tname" data-i18n="stBlank">Dự án trống</div>
+      </button>
+      <div class="st-cols">
+        <div>
+          <div class="st-sect" data-i18n="stRecent">Gần đây</div>
+          <div id="stRecentList" class="st-list"></div>
+        </div>
+        <div>
+          <div class="st-sect" data-i18n="stMine">📁 Dự án của tôi</div>
+          <div class="hint" data-i18n="stMineHint">Nơi tạm giữ dự án chưa lưu ra file — gồm cả bản còn dở khi app tắt đột ngột.</div>
+          <div id="stMineList" class="st-list"></div>
+        </div>
       </div>
     </div>
+
+    <div class="st-pane" data-pane="new">
+      <div class="st-hello" data-i18n="stNewSect">Tạo mới</div>
+      <button class="st-tile" id="stBlank2">
+        <div class="st-thumb"></div>
+        <div class="st-tname" data-i18n="stBlank">Dự án trống</div>
+      </button>
+      <div class="hint" style="margin-top:14px" data-i18n="stNewHint">Dự án hiện tại vẫn được giữ trong 📁 Dự án của tôi.</div>
+    </div>
+
+    <div class="st-pane" data-pane="open">
+      <div class="st-hello" data-i18n="stOpen">Mở</div>
+      <button class="st-langbtn" id="stBrowse" data-i18n="stBrowse">📂 Duyệt máy tính…</button>
+      <div id="stOpenList" class="st-list" style="margin-top:14px"></div>
+    </div>
+
+    <div class="st-pane" data-pane="lang">
+      <div class="st-hello" data-i18n="gLang">Ngôn ngữ</div>
+      <button class="st-langbtn" data-lang="vi">Tiếng Việt</button>
+      <button class="st-langbtn" data-lang="en">English</button>
+      <div class="hint" style="margin-top:10px" data-i18n="stLangHint">Chỉ đổi giao diện — nội dung dự án bạn nhập không bị dịch.</div>
+    </div>
+
   </div>
 </div>
 
@@ -2064,6 +2125,8 @@ function currentDisplayName() {
 function updateWindowTitle() {
   const title = "Tiến độ thi công - " + currentDisplayName() + (isDiskDirty() ? " *" : "");
   document.title = title;
+  const ht = $("#hTitle");
+  if (ht) ht.textContent = "Tiến độ thi công – " + currentDisplayName() + (isDiskDirty() ? " *" : "");
   if (window.desktop && window.desktop.setWindowTitle) {
     try { window.desktop.setWindowTitle(title); } catch (e) { }
   }
@@ -5153,6 +5216,8 @@ function bindUI(){
   // Ribbon tabs
   document.querySelectorAll(".rtabs button").forEach(b=>{
     b.onclick=()=>{
+      // Tab File mở Backstage toàn màn hình, không đổi bảng ribbon
+      if(b.dataset.tab==="file"){ openStart("home"); return; }
       document.querySelectorAll(".rtabs button").forEach(x=>x.classList.toggle("on",x===b));
       document.querySelectorAll(".rpanel").forEach(p=>p.classList.toggle("on", p.dataset.tab===b.dataset.tab));
     };
@@ -7637,7 +7702,35 @@ function renderStart(){
       ()=>{ closeStart(); e.unsaved? recoverOne(e.id) : switchProject(e.id); })));
   }
 }
-function openStart(){ renderStart(); const o=$("#startOverlay"); if(o) o.classList.add("on"); }
+function stPane(name){
+  document.querySelectorAll("#startOverlay .st-nav[data-pane]").forEach(b=>
+    b.classList.toggle("on", b.dataset.pane===name));
+  document.querySelectorAll("#startOverlay .st-pane").forEach(p=>
+    p.classList.toggle("on", p.dataset.pane===name));
+  if(name==="open") renderOpenPane();
+  if(name==="lang") document.querySelectorAll("#startOverlay .st-langbtn[data-lang]")
+    .forEach(b=>b.classList.toggle("on", b.dataset.lang===uiLang));
+}
+/* Danh sách Mở: gom theo Hôm nay / Tuần trước / Cũ hơn như MS Project */
+function renderOpenPane(){
+  const box=$("#stOpenList"); if(!box) return;
+  box.innerHTML="";
+  const list=loadRecent();
+  if(!list.length){ const d=document.createElement("div"); d.className="st-empty"; d.textContent=t("stNoRecent"); box.appendChild(d); return; }
+  const now=Date.now(), DAY=86400000;
+  const grp=[[t("stToday"),[]],[t("stLastWeek"),[]],[t("stOlder"),[]]];
+  list.forEach(e=>{
+    const age=now-(e.ts||0);
+    (age<DAY? grp[0] : age<7*DAY? grp[1] : grp[2])[1].push(e);
+  });
+  grp.forEach(([cap,items])=>{
+    if(!items.length) return;
+    const h=document.createElement("div"); h.className="st-grp"; h.textContent=cap; box.appendChild(h);
+    items.forEach(e=>box.appendChild(stRow("📄", e.name||baseNameOf(e.path), e.path,
+      new Date(e.ts||now).toLocaleDateString("vi-VN"), ()=>openRecent(e.path))));
+  });
+}
+function openStart(pane){ renderStart(); const o=$("#startOverlay"); if(o) o.classList.add("on"); stPane(pane||"home"); }
 function closeStart(){ const o=$("#startOverlay"); if(o) o.classList.remove("on"); }
 async function openRecent(p){
   closeStart();
@@ -7658,11 +7751,27 @@ async function openRecent(p){
 }
 function bindStart(){
   const on=(id,fn)=>{ const el=$(id); if(el) el.onclick=fn; };
-  on("#stBlank", ()=>{ closeStart(); newProject(); toast(t("stBlankDone")); });
-  on("#stNavNew", ()=>{ closeStart(); newProject(); toast(t("stBlankDone")); });
-  on("#stNavHome", ()=>renderStart());
-  on("#stNavOpen", ()=>{ closeStart(); if(window._fileOps) window._fileOps.fileOpen(); });
-  on("#btnStart", ()=>openStart());
+  const blank=()=>{ closeStart(); newProject(); toast(t("stBlankDone")); };
+  on("#stBlank", blank);
+  on("#stBlank2", blank);
+  on("#stBack", ()=>closeStart());
+  document.querySelectorAll("#startOverlay .st-nav[data-pane]").forEach(b=>{
+    b.onclick=()=>stPane(b.dataset.pane);
+  });
+  /* Các mục hành động bấm hộ nút tương ứng trong bảng ribbon File (bảng đó
+     vẫn còn trong DOM, chỉ bị ẩn) — khỏi phải nhân đôi logic lưu/in. */
+  on("#stSave", ()=>{ closeStart(); $("#btnFileSave").click(); });
+  on("#stSaveAs", ()=>{ closeStart(); $("#btnFileSaveAs").click(); });
+  on("#stPrint", ()=>{ closeStart(); $("#btnPrint").click(); });
+  on("#stBrowse", ()=>{ closeStart(); if(window._fileOps) window._fileOps.fileOpen(); });
+  on("#stCloseDoc", async ()=>{
+    if(window.guardUnsavedAsync && !(await window.guardUnsavedAsync())) return;
+    newProject(); renderStart(); stPane("home");
+  });
+  document.querySelectorAll("#startOverlay .st-langbtn[data-lang]").forEach(b=>{
+    b.onclick=()=>{ window.setLang(b.dataset.lang); renderStart(); stPane("lang"); };
+  });
+  on("#btnStart", ()=>openStart("home"));
   document.addEventListener("keydown", e=>{
     if(e.key==="Escape" && $("#startOverlay").classList.contains("on")) closeStart();
   });
@@ -7988,6 +8097,10 @@ en:{tabFile:"File",tabTask:"Task",tabProject:"Project",tabView:"View",tabFormat:
  stUnsaved:"not saved to a file yet",stOldItem:"from an earlier version",
  stMorning:"Good morning",stAfternoon:"Good afternoon",stEvening:"Good evening",
  stBlankDone:"📄 New blank project",
+ stCloseDoc:"Close project",stSaveL:"Save",stSaveAsL:"Save as…",stPrintL:"Print / Export PDF",stBrowse:"📂 Browse this PC…",
+ stToday:"Today",stLastWeek:"Last week",stOlder:"Older",
+ stNewHint:"The current project stays in 📁 My Projects.",
+ stLangHint:"Interface only — the project content you type is not translated.",
  recOneSub:"Yes loads the unsaved version. No opens the file as it is on disk and drops the unsaved copy.",
  nmT:"Name this project",
  nmMsg:"The project will be stored in 🗂 My Projects under this name.",
@@ -8068,6 +8181,10 @@ vi:{tabFile:"Tệp",tabTask:"Công việc",tabProject:"Dự án",tabView:"Hiển
  stUnsaved:"chưa lưu ra file",stOldItem:"từ bản trước",
  stMorning:"Chào buổi sáng",stAfternoon:"Chào buổi chiều",stEvening:"Chào buổi tối",
  stBlankDone:"📄 Dự án trống mới",
+ stCloseDoc:"Đóng dự án",stSaveL:"Lưu",stSaveAsL:"Lưu thành…",stPrintL:"In / Xuất PDF",stBrowse:"📂 Duyệt máy tính…",
+ stToday:"Hôm nay",stLastWeek:"Tuần trước",stOlder:"Cũ hơn",
+ stNewHint:"Dự án hiện tại vẫn được giữ trong 📁 Dự án của tôi.",
+ stLangHint:"Chỉ đổi giao diện — nội dung dự án bạn nhập không bị dịch.",
  recOneSub:"Chọn Có để nạp bản chưa lưu. Chọn Không thì mở đúng nội dung file trên đĩa và bỏ bản dở dang.",
  nmT:"Đặt tên dự án",
  nmMsg:"Dự án sẽ được cất trong 🗂 Dự án của tôi với tên này.",
@@ -8169,7 +8286,7 @@ window.APP = {
   colLabelOf, autoFitCol, autoFitRows, textPx, paintColSel, fmtStyleCss,
   switchProject, newProject, duplicateProject, deleteProject, loadIndex, saveIndex, prjKey, updateFileLabel, openExternalData,
   isDiskDirty, hasUnsavedWork, baseNameOf, openElsewhere, parkProject, resolveParked,
-  loadRecent, pushRecent, renderStart, openStart, closeStart, RECENTKEY, claimOpen, releaseOpen, loadOpenMap, OPENKEY, WINKEY, markUnsaved, clearUnsavedFlag, purgeProject, pendingRecovery, renderRecList, maybeShowRecovery, closeFlow, openExternalDataAsk, recoverOne, save,
+  loadRecent, pushRecent, renderStart, openStart, closeStart, RECENTKEY, stPane, renderOpenPane, claimOpen, releaseOpen, loadOpenMap, OPENKEY, WINKEY, markUnsaved, clearUnsavedFlag, purgeProject, pendingRecovery, renderRecList, maybeShowRecovery, closeFlow, openExternalDataAsk, recoverOne, save,
   get currentId(){ return currentId; },
   get colSel(){ return colSel; },
   selectCols(arr){ colSel=new Set(arr); paintColSel(); },
