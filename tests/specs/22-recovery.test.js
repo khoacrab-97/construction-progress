@@ -7,8 +7,10 @@
       "Không" thì bỏ hẳn, không hỏi lại nữa.
 
    B. Dự án chưa từng ghi ra .tdtc, tắt thủ công → hộp Có/Không/Hủy. Chọn
-      "Không" thì hỏi thêm có giữ trong 🗂 Dự án của tôi không; không giữ thì
-      xóa hẳn, không để lại rác.
+      "Không" là xóa hẳn: 🗂 Dự án của tôi chỉ là BÃI ĐỖ TẠM, không phải kho
+      lưu trữ, nên không còn bước "giữ lại trong My Project" nữa.
+      Bấm New nhiều lần thì nhiều dự án đỗ lại; đóng cửa sổ hỏi một lượt về
+      tất cả — lưu ra .tdtc, hoặc xóa hết.
 
    Cơ chế: cờ `unsaved` trên từng mục của tiendo_idx_v1. Cờ còn sót lúc khởi
    động = lần trước app chết bất thường — vì tắt tử tế thì closeFlow() đã xóa.  */
@@ -84,12 +86,22 @@ exports.run = async function (t) {
     APP.markUnsaved();
     t.eq(APP.pendingRecovery().length, 1);
 
-    t.case("dự án chưa gắn file thì KHÔNG vào danh sách phục hồi");
+    t.case("dự án MỚI chưa có file cũng vào danh sách phục hồi");
+    /* 🗂 Dự án của tôi là bãi đỗ tạm: đóng cửa sổ tử tế thì dọn sạch, nên thứ
+       còn sót lúc khởi động là đồ của lần app chết — dù có file hay không. */
     LS.clear();
     win._srcUrl = null; win._docDirty = false;
     makeState(APP, { name: "Chưa lưu", tasks: [{ name: "Trồng cây", dur: 2 }] });
     APP.save();
-    t.eq(APP.pendingRecovery().length, 0, "chỉ nằm im trong My Project, không nhắc phục hồi");
+    t.eq(APP.pendingRecovery().length, 1, "mất điện xong vẫn cứu được dự án chưa kịp đặt tên file");
+    t.eq(APP.pendingRecovery()[0].srcUrl, undefined, "mục này chưa gắn file nào");
+
+    t.case("mục còn sót từ bản cũ KHÔNG bị hiểu nhầm là đồ sót sau khi app chết");
+    LS.clear();
+    APP.saveIndex([{ id: "pOld", name: "Dự án từ bản trước", updated: 1 }]);
+    LS.setItem("tiendo_prj_pOld", JSON.stringify({ name: "Dự án từ bản trước", tasks: [] }));
+    t.eq(APP.pendingRecovery().length, 0, "không có cờ unsaved thì không bị lôi ra hỏi");
+    t.ok(LS.getItem("tiendo_prj_pOld") !== null, "và cũng không bị xóa");
 
     t.case("purgeProject xóa sạch cả ba dấu vết");
     const idP = APP.currentId;
@@ -114,52 +126,50 @@ exports.run = async function (t) {
     t.eq(await p, false, "closeFlow trả false → ở lại app");
     t.eq(vis("#svOverlay"), "none", "hộp đã đóng");
 
-    t.case("B — Không rồi Không: xóa hẳn khỏi 🗂 Dự án của tôi");
+    t.case("B — chọn Không là xóa hẳn, không hỏi thêm bước nào");
     const idB = APP.currentId;
     t.ok(LS.getItem("tiendo_prj_" + idB) !== null, "trước khi tắt vẫn còn");
     p = APP.closeFlow();
     await tick();
     $("#svNo").onclick();
-    await tick();
-    t.eq(vis("#ask2Overlay"), "flex", "hỏi tiếp: giữ trong Dự án của tôi?");
-    $("#ask2No").onclick();
     t.eq(await p, true, "được phép đóng app");
+    t.eq(vis("#ask2Overlay"), "none",
+      "My Project là bãi đỗ tạm nên không còn hỏi 'giữ lại trong My Project?'");
     t.eq(LS.getItem("tiendo_prj_" + idB), null, "đã xóa state");
     t.ok(!APP.loadIndex().some(e => e.id === idB), "đã xóa khỏi danh mục — không để lại rác");
 
-    t.case("B — Không rồi Có: đặt tên rồi cất vào 🗂 Dự án của tôi");
+    t.case("nhiều dự án đỗ lại: đóng cửa sổ hỏi MỘT lượt về tất cả");
+    /* Bấm New nhiều lần thì dự án cũ đỗ lại trong My Project. */
     LS.clear();
     win._srcUrl = null; win._docDirty = false;
-    makeState(APP, { name: "Dự án mới", tasks: [{ name: "Cấp nước", dur: 4 }] });
-    APP.save();
-    const idC = APP.currentId;
-    p = APP.closeFlow();
+    win._parked = new Set();
+    ["pk1", "pk2"].forEach((id, i) => {
+      LS.setItem("tiendo_prj_" + id, JSON.stringify({ name: "Đỗ lại " + (i + 1), tasks: [] }));
+      win._parked.add(id);
+    });
+    APP.saveIndex([
+      { id: "pk1", name: "Đỗ lại 1", updated: 1, unsaved: 1 },
+      { id: "pk2", name: "Đỗ lại 2", updated: 2, unsaved: 1 },
+      { id: "pOther", name: "Của cửa sổ khác", updated: 3, unsaved: 1 }
+    ]);
+    LS.setItem("tiendo_prj_pOther", JSON.stringify({ name: "Của cửa sổ khác", tasks: [] }));
+    makeState(APP, { name: "Đang mở", tasks: [{ name: "X", dur: 1 }] });
+    p = APP.resolveParked();
     await tick();
-    $("#svNo").onclick();
-    await tick();
-    $("#ask2Yes").onclick();
-    await tick();
-    t.eq(vis("#nameOverlay"), "flex", "hiện hộp đặt tên");
-    t.eq($("#nameInp").value, "Dự án mới", "điền sẵn tên hiện tại");
-    $("#nameInp").value = "Đường N5 - Gói 2";
-    $("#nameOk").onclick();
-    t.eq(await p, true, "được phép đóng app");
-    t.eq(APP.state.name, "Đường N5 - Gói 2", "tên mới đã áp vào state");
-    t.ok(LS.getItem("tiendo_prj_" + idC) !== null, "state còn nguyên");
-    t.ok(APP.loadIndex().some(e => e.id === idC && e.name === "Đường N5 - Gói 2"),
-      "danh mục mang tên mới");
+    t.eq(vis("#ask2Overlay"), "flex", "có hỏi về những dự án đỗ lại");
+    t.ok($("#ask2Msg").textContent.indexOf("2") >= 0,
+      "đếm đúng 2 mục của cửa sổ này: " + $("#ask2Msg").textContent);
+    t.ok($("#ask2Sub").textContent.indexOf("Đỗ lại 1") >= 0, "liệt kê tên từng dự án");
+    $("#ask2No").onclick();
+    t.eq(await p, true, "được phép đóng");
+    t.eq(LS.getItem("tiendo_prj_pk1"), null, "chọn Không → xóa hẳn");
+    t.eq(LS.getItem("tiendo_prj_pk2"), null);
+    t.ok(LS.getItem("tiendo_prj_pOther") !== null,
+      "KHÔNG đụng mục của cửa sổ khác — đó là dữ liệu người ta đang dùng");
 
-    t.case("B — hủy ở bước đặt tên thì quay lại, không đóng và không mất dữ liệu");
-    win._docDirty = true;
-    p = APP.closeFlow();
-    await tick();
-    $("#svNo").onclick();
-    await tick();
-    $("#ask2Yes").onclick();
-    await tick();
-    $("#nameCancel").onclick();
-    t.eq(await p, false, "ở lại app");
-    t.ok(LS.getItem("tiendo_prj_" + idC) !== null, "dự án vẫn còn nguyên");
+    t.case("không có gì đỗ lại thì không hỏi han gì");
+    win._parked = new Set();
+    t.eq(await APP.resolveParked(), true, "qua thẳng");
 
     /* ---------- Luồng A: tắt thủ công một file .tdtc ---------- */
     t.case("A — chọn Không thì đóng bình thường và KHÔNG nhắc phục hồi lần sau");
@@ -184,7 +194,7 @@ exports.run = async function (t) {
     t.ok(LS.getItem("tiendo_prj_" + idD) !== null, "dự án vẫn nằm trong My Project");
 
     /* ---------- Hộp phục hồi nhiều mục ---------- */
-    t.case("danh sách phục hồi chỉ gồm mục có cờ unsaved VÀ gắn file");
+    t.case("danh sách phục hồi gồm mọi mục còn cờ unsaved, có file hay không");
     LS.clear();
     win._srcUrl = null; win._srcName = ""; win._extDirty = false;
     APP.saveIndex([
@@ -193,9 +203,9 @@ exports.run = async function (t) {
       { id: "pC", name: "Dự án C", updated: 3, srcUrl: "C:/d/C.tdtc" },
       { id: "pD", name: "Dự án D", updated: 4, unsaved: 1 }
     ]);
-    t.eq(APP.pendingRecovery().length, 2, "C thiếu cờ, D thiếu file → loại");
-    t.eq(APP.renderRecList(), 2, "danh sách vẽ 2 dòng");
-    t.eq(win.document.querySelectorAll("#recList .recRow").length, 2, "mỗi mục một dòng");
+    t.eq(APP.pendingRecovery().length, 3, "chỉ C bị loại vì thiếu cờ; D không có file vẫn được cứu");
+    t.eq(APP.renderRecList(), 3, "danh sách vẽ 3 dòng");
+    t.eq(win.document.querySelectorAll("#recList .recRow").length, 3, "mỗi mục một dòng");
     t.eq(win.document.querySelectorAll("#recList input").length, 0, "không còn ô tích nào");
     t.eq(win.document.querySelectorAll("#recList .recRow")[0].querySelectorAll("button").length, 2,
       "mỗi dòng đúng hai nút: Mở lại và Bỏ");
@@ -204,9 +214,10 @@ exports.run = async function (t) {
     t.eq(APP.maybeShowRecovery(), true, "còn mục → hiện hộp");
     t.eq(vis("#recOverlay"), "flex");
     APP.clearUnsavedFlag("pA");
-    t.eq(APP.renderRecList(), 1, "còn một mục chờ");
-    t.eq(APP.pendingRecovery().map(e => e.id), ["pB"], "đúng mục còn lại");
+    t.eq(APP.renderRecList(), 2, "còn hai mục chờ");
+    t.eq(APP.pendingRecovery().map(e => e.id), ["pB", "pD"], "đúng mục còn lại");
     APP.clearUnsavedFlag("pB");
+    APP.clearUnsavedFlag("pD");
     t.eq(APP.renderRecList(), 0);
     $("#recOverlay").style.display = "none";
     t.eq(APP.maybeShowRecovery(), false, "hết mục → không hiện hộp");
@@ -254,7 +265,8 @@ exports.run = async function (t) {
     t.eq(APP.state.name, "BẢN DỞ DANG", "chọn Có → lấy bản dở dang, không lấy nội dung file");
     t.eq(APP.state.tasks[0].name, "Việc mới thêm chưa lưu");
     t.eq(win._extDirty, true, "vẫn tính là chưa ghi ra file");
-    t.eq(APP.pendingRecovery().length, 1, "vẫn còn cờ cho tới khi lưu ra .tdtc");
+    t.ok(APP.pendingRecovery().some(e => e.id === "pX"),
+      "bản dở dang vẫn còn cờ cho tới khi lưu ra .tdtc");
 
     t.case("chọn Không thì lấy nội dung file và bỏ cờ, lần sau không hỏi lại");
     LS.clear();
@@ -266,7 +278,8 @@ exports.run = async function (t) {
     $("#ask2No").onclick();
     await p;
     t.eq(APP.state.name, "BẢN TRÊN ĐĨA", "nạp đúng nội dung file");
-    t.eq(APP.pendingRecovery().length, 0, "cờ đã bỏ — chỉ hỏi đúng một lần");
+    t.ok(!APP.pendingRecovery().some(e => e.id === "pY"),
+      "cờ của mục đó đã bỏ — chỉ hỏi đúng một lần");
 
     t.case("file không có bản dở dang thì mở thẳng, không hỏi gì");
     LS.clear();
@@ -276,6 +289,30 @@ exports.run = async function (t) {
     t.eq(vis("#ask2Overlay"), "none", "không hiện hộp hỏi");
     await p;
     t.eq(APP.state.name, "BẢN TRÊN ĐĨA");
+
+
+    /* Đổi ý so với thiết kế đầu: phục hồi KHÔNG còn ghi đè file gốc nữa.
+       Mở bản dở dang ra rồi bấm Lưu sẽ tạo một .tdtc KHÁC. File gốc chỉ đổi
+       khi người dùng chủ động chọn đè lên nó. */
+    t.case("phục hồi KHÔNG ghi đè file gốc — Lưu sẽ tạo file mới");
+    LS.clear();
+    win._srcUrl = null; win._extDirty = false; win._docDirty = false;
+    const draft2 = JSON.parse(JSON.stringify(APP.state));
+    draft2.name = "BẢN CỨU ĐƯỢC";
+    draft2.tasks = [{ name: "Việc gõ dở lúc mất điện", level: 0, dur: 9,
+                      preds: "", res: "", mStart: "", custom: {} }];
+    LS.setItem("tiendo_prj_pR", JSON.stringify(draft2));
+    APP.saveIndex([{ id: "pR", name: "BẢN CỨU ĐƯỢC", updated: 7,
+                     srcUrl: "C:/du-an/Goc.tdtc", unsaved: 1 }]);
+    await APP.recoverOne("pR");
+    t.eq(APP.state.name, "BẢN CỨU ĐƯỢC", "nạp đúng bản dở dang");
+    t.eq(APP.state.tasks[0].name, "Việc gõ dở lúc mất điện", "giữ nguyên phần gõ chưa lưu");
+    t.eq(win._srcUrl, null, "đã CẮT liên kết tới file gốc — Lưu sẽ mở hộp Lưu thành");
+    const eR = APP.loadIndex().find(x => x.id === APP.currentId);
+    t.ok(!!eR, "vẫn có mục trong My Project");
+    t.eq(eR.srcUrl, undefined, "mục không còn trỏ tới file gốc");
+    t.eq(eR.unsaved, 1, "vẫn là việc chưa ghi ra đĩa, crash lần nữa vẫn cứu được");
+    t.eq(APP.hasUnsavedWork(), true, "đóng cửa sổ sẽ hỏi lưu");
 
   } finally { closeApp(APP); }
 };

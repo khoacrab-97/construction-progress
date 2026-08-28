@@ -327,7 +327,7 @@ textarea{width:100%;height:90px;border:1px solid var(--line-strong);border-radiu
 .dlg .dbody{display:grid;grid-template-columns:auto 1fr;gap:16px;padding:22px 24px 18px}
 .dlg .dicon{font-size:30px;line-height:1}
 .dlg .dmain{font-size:14.5px;font-weight:600;color:var(--ink);line-height:1.45}
-.dlg .dsub{font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-top:8px}
+.dlg .dsub{font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-top:8px;white-space:pre-line}
 .dlg .dfoot{display:flex;justify-content:flex-end;gap:8px;padding:13px 24px;
   background:var(--paper);border-top:1px solid var(--line)}
 .dlg .dfoot button{min-width:98px;padding:7px 14px;font-size:13px;border-radius:6px}
@@ -1642,6 +1642,11 @@ const OPENKEY = "tiendo_open_v1";
 const OPEN_TTL = 30000;   // ms
 const WINKEY = "w" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 function loadOpenMap(){ try{ return JSON.parse(LS.get(OPENKEY))||{}; }catch(e){ return {}; } }
+/* Những dự án CỬA SỔ NÀY đã đỗ vào 🗂 Dự án của tôi trong phiên này. Lúc đóng
+   cửa sổ chỉ hỏi về chúng — mục của cửa sổ khác, và mục còn sót từ bản cũ,
+   không được đụng tới. */
+window._parked = new Set();
+function parkProject(id){ if(id) window._parked.add(id); }
 /* Dự án đang mở ở CỬA SỔ KHÁC và cửa sổ đó còn sống? */
 function openElsewhere(id){
   if(!id) return false;
@@ -1771,9 +1776,18 @@ function save(){
        qua mất điện / treo máy. Cờ còn sót lúc khởi động = lần trước app chết
        bất thường → hỏi phục hồi. Tắt tử tế thì một trong hai nhánh của
        closeFlow() đã xóa cờ rồi, nên không cần cơ chế dò riêng. */
-    if(!window._saveQuiet && window._srcUrl){
+    if(!window._saveQuiet){
+      parkProject(currentId);
       const e2=ix.find(x=>x.id===currentId);
-      if(e2){ e2.srcUrl=window._srcUrl; e2.unsaved=1; }
+      /* Cờ này giờ mang nghĩa rộng hơn: "chưa ghi ra .tdtc", áp cho CẢ dự án
+         mới chưa từng có file. 🗂 Dự án của tôi là bãi đỗ tạm — đóng cửa sổ
+         tử tế thì dọn sạch, nên thứ còn sót lúc khởi động là đồ của lần app
+         chết bất thường, dù nó có file hay không.
+         Mục cũ từ bản trước không có cờ nên không bị hiểu nhầm là đồ sót. */
+      if(e2){
+        if(window._srcUrl) e2.srcUrl=window._srcUrl;
+        e2.unsaved=1;
+      }
     }
     const _sig=JSON.stringify(ix.find(x=>x.id===currentId)||null);
     if(_sig!==window._idxSig || _now-(window._lastIdx||0) > 5000){
@@ -1928,7 +1942,7 @@ function purgeProject(id){
   }catch(err){}
 }
 function pendingRecovery(){
-  return loadIndex().filter(e => e && e.unsaved && e.srcUrl && !openElsewhere(e.id));
+  return loadIndex().filter(e => e && e.unsaved && !openElsewhere(e.id));
 }
 /* Hộp Có/Không dùng chung */
 function askYesNo(msg, sub, icon){
@@ -7432,21 +7446,24 @@ async function recoverOne(id) {
   let st = null;
   try { st = JSON.parse(LS.get(prjKey(id))); } catch (err) { }
   if (!st) { toast("Không đọc được bản dở dang"); clearUnsavedFlag(id); return; }
-  const nmf = baseNameOf(e.srcUrl) || "project.tdtc";
-  let desktop = false;
-  if (window.desktop && window.desktop.isElectron) {
-    /* Đọc lại file gốc để (1) chắc file còn ở đó, (2) báo đường dẫn hiện hành
-       cho tiến trình chính — nhờ vậy 💾 Lưu ghi ĐÈ đúng file, không hỏi lại.
-       Nội dung đọc lên bị bỏ đi, ta dùng bản dở dang trong danh mục. */
-    try {
-      const res = await window.desktop.loadProjectFile(e.srcUrl);
-      desktop = !!(res && !res.error && !res.canceled);
-    } catch (err) { }
-    if (!desktop) toast("Không thấy " + nmf + " ở chỗ cũ — hãy dùng 💾 Lưu thành để chọn nơi lưu");
-  }
-  openExternalData(e.srcUrl, st, { name: nmf, desktop: desktop });
-  window._extDirty = true; markUnsaved(); updateFileLabel();
-  toast("🛟 Đã mở lại bản chưa lưu: " + nmf);
+  const nmf = baseNameOf(e.srcUrl) || "";
+  const isDesk = !!(window.desktop && window.desktop.isElectron);
+  /* Phục hồi KHÔNG ghi đè file gốc. Nạp bản dở dang rồi CẮT liên kết tới file
+     trên đĩa, nên 💾 Lưu mở hộp Lưu thành và ra một .tdtc KHÁC. File gốc chỉ
+     đổi khi người dùng chủ động chọn đè lên nó. */
+  openExternalData(e.srcUrl || ("recover:" + id), st, { name: nmf || "project.tdtc", desktop: isDesk });
+  window._srcUrl = null; window._extDirty = false;
+  fileHandle = null; fileDirty = false;
+  window._docDirty = true;              // vẫn là việc chưa ghi ra đĩa
+  await tellPath(null);                 // Lưu → hộp Lưu thành
+  try{
+    const ix2=loadIndex(), e3=ix2.find(x=>x.id===currentId);
+    if(e3){ delete e3.srcUrl; e3.unsaved=1; saveIndex(ix2); }
+  }catch(err){}
+  parkProject(currentId);
+  updateFileLabel();
+  toast(nmf ? ("🛟 Đã mở bản chưa lưu của " + nmf + " — Lưu sẽ tạo file mới")
+            : "🛟 Đã mở bản chưa lưu — Lưu sẽ tạo file mới");
 }
 /* Danh sách phục hồi. Trả về số mục còn lại. */
 function renderRecList(){
@@ -7520,15 +7537,35 @@ async function confirmDesktopClose() {
 async function closeFlow() {
   const choice = window.guardUnsavedChoice ? await window.guardUnsavedChoice(true) : "clean";
   if (choice === "cancel") return false;
-  if (choice !== "no") return true;
-  if (fileHandle || window._srcUrl) { clearUnsavedFlag(currentId); return true; }
-  if (!stateHasContent()) return true;
-  if (!(await askYesNo(t("keepMsg"), t("keepSub"), "🗂"))) { purgeProject(currentId); return true; }
-  const nm = await askName((state && state.name) || "Dự án mới");
-  if (nm === null) return false;
-  state.name = nm;
-  window._fresh = false;
-  save();
+  if (choice === "no") {
+    if (fileHandle || window._srcUrl) clearUnsavedFlag(currentId);
+    else if (stateHasContent()) purgeProject(currentId);
+  }
+  return await resolveParked();
+}
+/* 🗂 Dự án của tôi là bãi đỗ tạm. Bấm New nhiều lần thì nhiều dự án đỗ lại
+   đây. Đóng cửa sổ là lần cuối được hỏi: lưu ra .tdtc, hoặc xóa hẳn.
+   Chỉ đụng mục của CỬA SỔ NÀY — mục của cửa sổ khác và mục còn sót từ bản cũ
+   giữ nguyên. */
+async function resolveParked() {
+  const parked = window._parked || new Set();
+  const list = loadIndex().filter(e =>
+    e && e.id !== currentId && !e.srcUrl && parked.has(e.id) && LS.get(prjKey(e.id)));
+  if (!list.length) return true;
+  const names = list.map(e => "· " + (e.name || "Dự án")).join("\n");
+  const keep = await askYesNo(
+    t("bulkMsg").replace("{n}", list.length),
+    t("bulkSub") + "\n\n" + names, "🗂");
+  if (!keep) { list.forEach(e => purgeProject(e.id)); return true; }
+  for (const e of list) {
+    let st = null;
+    try { st = JSON.parse(LS.get(prjKey(e.id))); } catch (err) { }
+    if (!st) continue;
+    state = st; currentId = e.id;
+    mergeDefaults(); renderAll(); updateFileLabel();
+    const ok = window._fileOps ? await window._fileOps.fileSave(true) : false;
+    if (!ok) return false;   // hủy hộp Lưu thành → ở lại, không mất gì
+  }
   return true;
 }
 
@@ -7767,6 +7804,8 @@ en:{tabFile:"File",tabTask:"Task",tabProject:"Project",tabView:"View",tabFormat:
  svSubNew:"This project has never been saved to a .tdtc file.",
  keepMsg:"Keep this project in 🗂 My Projects so you can continue later?",
  keepSub:"No deletes it for good — it will not appear in the project list next time.",
+ bulkMsg:"{n} more project(s) are still only in 🗂 My Projects. Save them to .tdtc files?",
+ bulkSub:"My Projects is a temporary holding area. Choosing No deletes these for good.",
  recOneSub:"Yes loads the unsaved version. No opens the file as it is on disk and drops the unsaved copy.",
  nmT:"Name this project",
  nmMsg:"The project will be stored in 🗂 My Projects under this name.",
@@ -7838,6 +7877,8 @@ vi:{tabFile:"Tệp",tabTask:"Công việc",tabProject:"Dự án",tabView:"Hiển
  svSubNew:"Dự án này chưa từng được lưu ra file .tdtc.",
  keepMsg:"Giữ dự án này trong 🗂 Dự án của tôi để làm tiếp sau không?",
  keepSub:"Chọn Không là xóa hẳn — lần sau mở app sẽ không còn thấy dự án này trong danh sách.",
+ bulkMsg:"Còn {n} dự án nữa mới chỉ nằm trong 🗂 Dự án của tôi. Lưu ra file .tdtc chứ?",
+ bulkSub:"🗂 Dự án của tôi chỉ là chỗ đỗ tạm. Chọn Không là xóa hẳn những dự án dưới đây.",
  recOneSub:"Chọn Có để nạp bản chưa lưu. Chọn Không thì mở đúng nội dung file trên đĩa và bỏ bản dở dang.",
  nmT:"Đặt tên dự án",
  nmMsg:"Dự án sẽ được cất trong 🗂 Dự án của tôi với tên này.",
@@ -7933,7 +7974,7 @@ window.APP = {
   hasPST, pstOrdinal, idxOfId, setProjectSummary, children, insertTasksAt, setScheduleMode, moveBlockTo, moveColumn, toggleCollapse, computeHidden, colIdxOf, autoRowH, barTextFS,
   colLabelOf, autoFitCol, autoFitRows, textPx, paintColSel, fmtStyleCss,
   switchProject, newProject, duplicateProject, deleteProject, loadIndex, saveIndex, prjKey, updateFileLabel, openExternalData,
-  isDiskDirty, hasUnsavedWork, baseNameOf, openElsewhere, claimOpen, releaseOpen, loadOpenMap, OPENKEY, WINKEY, markUnsaved, clearUnsavedFlag, purgeProject, pendingRecovery, renderRecList, maybeShowRecovery, closeFlow, openExternalDataAsk, recoverOne, save,
+  isDiskDirty, hasUnsavedWork, baseNameOf, openElsewhere, parkProject, resolveParked, claimOpen, releaseOpen, loadOpenMap, OPENKEY, WINKEY, markUnsaved, clearUnsavedFlag, purgeProject, pendingRecovery, renderRecList, maybeShowRecovery, closeFlow, openExternalDataAsk, recoverOne, save,
   get currentId(){ return currentId; },
   get colSel(){ return colSel; },
   selectCols(arr){ colSel=new Set(arr); paintColSel(); },

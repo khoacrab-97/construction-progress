@@ -101,19 +101,29 @@ Timescale options: Show (1/2/3 tầng), Size %, Scale separator, có Preview.
 
 Hai chỗ chứa dữ liệu song song, có vai trò khác nhau:
 
-* **🗂 Dự án của tôi** (localStorage) — lưới an toàn. `save()` chạy sau mỗi lần
-sửa một ô, nên mất điện chỉ mất đúng ô đang gõ dở.
+* **🗂 Dự án của tôi** (localStorage) — **bãi đỗ tạm và lưới an toàn**, KHÔNG
+phải kho lưu trữ. `save()` chạy sau mỗi lần sửa một ô, nên mất điện chỉ mất
+đúng ô đang gõ dở. Đóng cửa sổ tử tế thì chỗ này được dọn sạch, nên **thứ còn
+sót lúc khởi động chính là đồ của lần app chết bất thường**.
 * **File `.tdtc`** — bản chính thức để lưu trữ và chia sẻ, chỉ được ghi khi
 người dùng bấm lưu.
+
+> **Đổi so với bản đầu (26.08.003).** Lúc đầu 🗂 Dự án của tôi là kho lưu trữ
+> lâu dài, và phục hồi thì **ghi đè** file gốc. Người dùng đổi ý: nó chỉ là chỗ
+> đỗ tạm, và phục hồi **lưu ra một file `.tdtc` khác**, không đụng bản gốc.
+> Ghi lại đây để sau này không ai tưởng là làm ẩu.
 
 Cầu nối giữa hai chỗ là cờ **`unsaved`** trên từng mục của `tiendo\_idx\_v1`:
 "bản trong máy mới hơn file trên đĩa".
 
 ```
-bật   ← save(), khi dự án đang gắn với một file .tdtc
+bật   ← save(), cho MỌI dự án chưa ghi ra .tdtc (kể cả dự án mới chưa có file)
 tắt   ← ghi ra .tdtc thành công
 tắt   ← người dùng chủ động chọn "Không lưu" lúc tắt app
 ```
+
+Mục còn sót từ bản cũ không mang cờ này, nên không bị hiểu nhầm là đồ sót sau
+khi app chết — và cũng không bị xóa.
 
 Vì vậy **cờ còn sót lúc khởi động = lần trước app chết bất thường** — tắt tử tế
 thì một trong hai nhánh của `closeFlow()` đã xóa cờ rồi. Không cần nhịp tim,
@@ -126,10 +136,15 @@ Hộp Có / Không / Hủy   (chỉ hiện khi isDiskDirty())
   Có     → ghi ra .tdtc rồi đóng
   Hủy    → ở lại
   Không  → dự án ĐÃ gắn file  : đóng luôn, xóa cờ (lần sau không nhắc phục hồi)
-         → dự án CHƯA có file : hỏi tiếp "giữ trong 🗂 Dự án của tôi?"
-                Có    → đặt tên → đóng
-                Không → xóa hẳn khỏi danh mục → đóng
+         → dự án CHƯA có file : XÓA HẲN khỏi danh mục
+
+rồi resolveParked(): cửa sổ này còn đỗ lại dự án nào chưa có file không?
+  Có     → lần lượt mở hộp Lưu thành cho từng cái (hủy giữa chừng = ở lại)
+  Không  → xóa hẳn tất cả
 ```
+
+`resolveParked()` **chỉ đụng mục của cửa sổ này** (`window._parked`) — mục của
+cửa sổ khác và mục còn sót từ bản cũ giữ nguyên.
 
 **Phục hồi** — hai lối vào, đều chỉ hỏi **một lần** cho mỗi mục:
 
@@ -138,12 +153,35 @@ Hộp Có / Không / Hủy   (chỉ hiện khi isDiskDirty())
 |Khởi động app|`maybeShowRecovery()` liệt kê mọi mục còn cờ. Mỗi dòng có **Mở lại** / **Bỏ**, kèm ô tick để bỏ hàng loạt. "Để sau" giữ nguyên, lần mở sau hỏi lại những mục chưa xử lý|
 |Mở đúng file đó|`openExternalDataAsk()` hỏi trước khi nạp. Trước đây `openExternalData()` **âm thầm đè** bản mới trong máy bằng nội dung cũ của file|
 
-Khi mở lại một bản dở dang, `recoverOne()` đọc lại file gốc rồi **bỏ nội dung đó
-đi** — mục đích chỉ là xác nhận file còn ở chỗ cũ và báo đường dẫn cho tiến trình
-chính, để 💾 Lưu ghi **đè đúng file**, không mở lại hộp Lưu thành.
+`recoverOne()` nạp bản dở dang rồi **cắt liên kết tới file gốc** (`_srcUrl` về
+`null`, gọi `project:set-path` với `null`). Vì vậy 💾 Lưu mở hộp **Lưu thành**
+và ra một `.tdtc` KHÁC — **phục hồi không bao giờ ghi đè bản gốc**. Muốn gộp lại
+thì người dùng tự chọn đè lên nó.
 
 `isDiskDirty()` tính cả dự án **chưa từng ghi ra `.tdtc`** (`_docDirty` \+
 `stateHasContent()`); trước đây nhánh này luôn "sạch" nên tắt app không hỏi gì.
+
+### 3.7 Nhiều cửa sổ
+
+Mỗi file `.tdtc` mở thành **một `BrowserWindow` riêng** — Alt+Tab chỉ liệt kê
+cửa sổ thật của hệ điều hành nên tab bên trong app không đáp ứng được.
+
+Chọn **đa cửa sổ** chứ không đa thể hiện: `localStorage` bị khóa bởi tiến trình
+chủ, hai thể hiện dùng chung userData sẽ hỏng dữ liệu; tách userData thì mỗi cửa
+sổ có một 🗂 Dự án của tôi riêng, mất luôn cơ chế phục hồi. Chưa kể nhiều
+`electron-updater` cùng chạy trình cài NSIS đè lên một thư mục.
+
+Cái giá phải trả: tranh chấp chuyển từ giữa-các-tiến-trình sang **trong cùng một
+`localStorage`**. Hai chốt chặn:
+
+* `save()` chỉ ghi lại danh mục khi có thứ đáng ghi, hoặc mỗi 5 giây — vì
+đọc–sửa–ghi không nguyên tử, mà `save()` chạy sau mỗi lần sửa một ô
+* `tiendo_open_v1` giữ dấu "dự án này đang mở ở cửa sổ nào", hạn 30 giây rồi tự
+hết hiệu lực nên cửa sổ tắt đột ngột không khóa vĩnh viễn
+
+Trong `main.js`, **mọi thứ tra theo `webContents.id`**: đường dẫn file, cờ cho
+phép đóng. Trước đây là biến dùng chung, nên Lưu ở cửa sổ này có thể ghi đè file
+của cửa sổ kia.
 
 \---
 
@@ -483,7 +521,7 @@ song ngữ, biểu đồ nhân lực.
 **Lưu \& phục hồi** — nhắc lưu kiểu MS Project cho cả dự án chưa có file, hộp
 phục hồi sau khi app đóng bất thường, không còn cảnh file cũ đè bản mới (xem 3.6).
 
-**Kiểm thử** — **22 bộ test, 870 assertion**, chạy trên jsdom, nằm trong `tests/`.
+**Kiểm thử** — **22 bộ test, 880 assertion**, chạy trên jsdom, nằm trong `tests/`.
 Chạy bằng `npm test`. Xem `tests/README.md` để biết cách viết thêm và quy trình
 chụp ảnh SVG.
 
@@ -537,7 +575,9 @@ hoạch và thực hiện. Phụ thuộc việc 1.
 |10|**Không đụng chuỗi IPC cập nhật** (`updates:check`, `updates:download`, `updates:quit-and-install`) nối `preload.js` ↔ `main.js` ↔ `update-service.js`|Đứt là máy người dùng không nhận được bản mới|
 |11|**Không đổi `publish` trong `package.json`**; không bật lại `verifyUpdateCodeSignature` khi chưa ký mã|Cập nhật thất bại im lặng trên mọi máy|
 |12|**Không bỏ `latest.yml` / `.blockmap`** khỏi asset release|`electron-updater` đọc không được, tự cập nhật chết|
-|13|**Không bỏ cờ `unsaved`** trong danh mục, cũng không bỏ `closeFlow()` / `openExternalDataAsk()`|Mất cơ chế phục hồi sau khi app chết; `openExternalData()` sẽ đè bản mới trong máy bằng nội dung cũ của file, âm thầm|
+|13|**Không bỏ cờ `unsaved`** trong danh mục, cũng không bỏ `closeFlow()` / `resolveParked()` / `openExternalDataAsk()`|Mất cơ chế phục hồi sau khi app chết; `openExternalData()` sẽ đè bản mới trong máy bằng nội dung cũ của file, âm thầm|
+|14|**Không để `recoverOne()` ghi đè file gốc** — phải cắt `_srcUrl` và gọi `project:set-path` với `null`|Người dùng đã chốt: phục hồi lưu ra file khác, bản gốc chỉ đổi khi họ chủ động đè lên|
+|15|**Không đưa đường dẫn file (hay bất cứ trạng thái tài liệu nào) về biến dùng chung trong `main.js`**|Lưu ở cửa sổ này ghi đè file của cửa sổ kia|
 
 ### 13.2 Bắt buộc làm mỗi lần sửa
 
