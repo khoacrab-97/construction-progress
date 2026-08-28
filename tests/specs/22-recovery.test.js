@@ -314,5 +314,66 @@ exports.run = async function (t) {
     t.eq(eR.unsaved, 1, "vẫn là việc chưa ghi ra đĩa, crash lần nữa vẫn cứu được");
     t.eq(APP.hasUnsavedWork(), true, "đóng cửa sổ sẽ hỏi lưu");
 
+
+    t.case("phục hồi dự án CHƯA từng có file thì giữ nguyên id");
+    /* Đi qua openExternalData sẽ sinh id mới vì nó tra theo srcUrl — mục cũ
+       mắc kẹt trong danh sách phục hồi mãi không dứt. */
+    LS.clear();
+    win._srcUrl = null; win._extDirty = false; win._docDirty = false;
+    const d3 = JSON.parse(JSON.stringify(APP.state));
+    d3.name = "CHUA CO FILE";
+    d3.tasks = [{ name: "Gõ dở chưa kịp đặt tên file", level: 0, dur: 4,
+                  preds: "", res: "", mStart: "", custom: {} }];
+    LS.setItem("tiendo_prj_pN", JSON.stringify(d3));
+    APP.saveIndex([{ id: "pN", name: "CHUA CO FILE", updated: 5, unsaved: 1 }]);
+    await APP.recoverOne("pN");
+    t.eq(APP.currentId, "pN", "GIỮ NGUYÊN id, không sinh mục mới");
+    t.eq(APP.state.tasks[0].name, "Gõ dở chưa kịp đặt tên file", "nạp đúng bản dở dang");
+    t.eq(APP.loadIndex().filter(e => e.name === "CHUA CO FILE").length, 1,
+      "không nhân bản mục trong danh mục");
+    t.eq(win._srcUrl, null, "vẫn chưa gắn file nào — Lưu sẽ mở hộp Lưu thành");
+
+    /* ---------- Màn hình đầu ---------- */
+    t.case("màn hình đầu có đủ Home / New / Open và ba vùng nội dung");
+    ["#startOverlay", "#stNavHome", "#stNavNew", "#stNavOpen",
+      "#stBlank", "#stRecentList", "#stMineList", "#stHello", "#stVer", "#btnStart"]
+      .forEach(sel => t.ok(!!$(sel), "có " + sel));
+
+    t.case("danh sách file mở gần đây");
+    LS.clear();
+    t.eq(APP.loadRecent(), [], "ban đầu trống");
+    APP.pushRecent("C:/du-an/A.tdtc", "A.tdtc");
+    APP.pushRecent("C:/du-an/B.tdtc", "B.tdtc");
+    t.eq(APP.loadRecent().map(e => e.name), ["B.tdtc", "A.tdtc"], "mới nhất lên đầu");
+    APP.pushRecent("C:/du-an/A.tdtc", "A.tdtc");
+    t.eq(APP.loadRecent().map(e => e.name), ["A.tdtc", "B.tdtc"],
+      "mở lại file cũ thì nhảy lên đầu, KHÔNG thành hai dòng");
+    t.eq(APP.loadRecent().length, 2);
+    for (let k = 0; k < 30; k++) APP.pushRecent("C:/d/f" + k + ".tdtc", "f" + k);
+    t.ok(APP.loadRecent().length <= 15, "có trần, không phình mãi: " + APP.loadRecent().length);
+    t.eq(LS.getItem("tiendo_recent_v1") !== null, true, "lưu ở khóa riêng, không đụng danh mục");
+
+    t.case("màn hình đầu vẽ đúng Gần đây và 🗂 Dự án của tôi");
+    LS.clear();
+    APP.pushRecent("C:/du-an/HaTang.tdtc", "HaTang.tdtc");
+    APP.saveIndex([
+      { id: "pM1", name: "Bản dở dang", updated: 9, unsaved: 1 },
+      { id: "pM2", name: "Dự án từ bản cũ", updated: 8 }
+    ]);
+    makeState(APP, { name: "Đang mở", tasks: [{ name: "X", dur: 1 }] });
+    APP.renderStart();
+    const rec = win.document.querySelectorAll("#stRecentList .st-item");
+    t.eq(rec.length, 1, "một dòng Gần đây");
+    t.ok(rec[0].textContent.indexOf("HaTang.tdtc") >= 0, "hiện tên file");
+    const mine = win.document.querySelectorAll("#stMineList .st-item");
+    t.eq(mine.length, 2, "hiện cả bản dở dang lẫn mục từ bản cũ — không giấu của ai");
+    t.ok(mine[0].textContent.indexOf("🛟") >= 0, "bản dở dang có dấu phao cứu sinh");
+
+    t.case("mở / đóng màn hình đầu");
+    APP.openStart();
+    t.ok($("#startOverlay").classList.contains("on"), "đã mở");
+    APP.closeStart();
+    t.ok(!$("#startOverlay").classList.contains("on"), "đã đóng");
+
   } finally { closeApp(APP); }
 };

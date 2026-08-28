@@ -337,6 +337,41 @@ textarea{width:100%;height:90px;border:1px solid var(--line-strong);border-radiu
   font-family:"Segoe UI",Arial,sans-serif}
 .dlg input[type=text]:focus{outline:none;border-color:var(--accent);
   box-shadow:0 0 0 3px rgba(31,111,178,.16)}
+/* ===== Màn hình đầu (Home / New / Open) — kiểu Backstage của MS Project ===== */
+#startOverlay{position:fixed;inset:0;display:none;z-index:80;background:var(--paper);
+  font-family:"Segoe UI",Arial,sans-serif}
+#startOverlay.on{display:flex}
+.st-rail{width:132px;flex:0 0 auto;background:#3a4550;color:#e6ecf1;
+  display:flex;flex-direction:column;padding:14px 0}
+.st-brand{font-size:15px;font-weight:700;padding:6px 16px 18px;color:#fff}
+.st-nav{display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:none;border:0;color:#cfd8df;padding:14px 0;cursor:pointer;font-size:12.5px;
+  border-radius:0;width:100%;font-family:inherit}
+.st-nav:hover{background:#46525f;color:#fff;border-color:transparent}
+.st-nav.on{background:var(--accent);color:#fff}
+.st-nav span{font-size:12.5px}
+.st-nav em{font-style:normal;font-size:20px;line-height:1}
+.st-ver{font-size:11px;color:#8fa0ae;text-align:center;padding:8px 6px}
+.st-main{flex:1;overflow:auto;padding:26px 34px 34px}
+.st-hello{font-size:26px;font-weight:300;color:var(--ink);margin-bottom:22px}
+.st-sect{font-size:13px;font-weight:600;color:var(--ink);margin:0 0 10px}
+.st-tile{width:150px;background:#fff;border:1px solid var(--line);border-radius:4px;
+  padding:0 0 8px;cursor:pointer;text-align:center;font-family:inherit}
+.st-tile:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(16,34,50,.12)}
+.st-thumb{height:104px;margin:8px 8px 6px;background:#fff;border:1px solid var(--line-strong)}
+.st-tname{font-size:12.5px;color:var(--ink)}
+.st-cols{display:grid;grid-template-columns:1fr 1fr;gap:34px;margin-top:30px}
+.st-list{display:flex;flex-direction:column}
+.st-item{display:flex;align-items:center;gap:10px;padding:8px 8px;border-bottom:1px solid var(--line);
+  cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;
+  text-align:left;font-family:inherit;width:100%}
+.st-item:hover{background:#eaf1f8;border-color:var(--line)}
+.st-item .ic{font-size:17px;flex:0 0 auto}
+.st-item .tx{flex:1;min-width:0}
+.st-item .nm{font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-item .pa{font-size:11px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-item .dt{font-size:11px;color:var(--ink-soft);white-space:nowrap}
+.st-empty{font-size:12px;color:var(--ink-soft);padding:10px 2px}
 .recRow{display:flex;gap:10px;align-items:center;border:1px solid var(--line);
   border-radius:8px;padding:9px 11px;background:#fff}
 .recRow:hover{border-color:var(--line-strong);background:#fbfcfd}
@@ -425,6 +460,7 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
         <div class="grows">
           <button class="primary" id="btnPrjMgr" data-i18n="btnPrjMgr">🗂 My Projects</button>
           <button id="btnNewPrj" title="Tạo dự án mới (dự án hiện tại vẫn được giữ trong danh sách)" data-i18n="btnNew">＋ New</button>
+          <button id="btnStart" title="Màn hình đầu — Gần đây, Dự án của tôi" data-i18n="stHomeBtn">🏠 Màn hình đầu</button>
         </div>
         <div class="gcap" data-i18n="gProject">Project</div>
       </div>
@@ -1551,6 +1587,37 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
   </div>
 </div>
 
+<!-- Màn hình đầu: Home / New / Open -->
+<div id="startOverlay">
+  <div class="st-rail">
+    <div class="st-brand" data-i18n="stBrand">Tiến độ</div>
+    <button class="st-nav on" id="stNavHome"><em>🏠</em><span data-i18n="stHome">Home</span></button>
+    <button class="st-nav" id="stNavNew"><em>📄</em><span data-i18n="stNew">New</span></button>
+    <button class="st-nav" id="stNavOpen"><em>📂</em><span data-i18n="stOpen">Open</span></button>
+    <div style="flex:1"></div>
+    <div class="st-ver" id="stVer"></div>
+  </div>
+  <div class="st-main">
+    <div class="st-hello" id="stHello"></div>
+    <div class="st-sect" data-i18n="stNewSect">Tạo mới</div>
+    <button class="st-tile" id="stBlank">
+      <div class="st-thumb"></div>
+      <div class="st-tname" data-i18n="stBlank">Dự án trống</div>
+    </button>
+    <div class="st-cols">
+      <div>
+        <div class="st-sect" data-i18n="stRecent">Gần đây</div>
+        <div id="stRecentList" class="st-list"></div>
+      </div>
+      <div>
+        <div class="st-sect" data-i18n="stMine">📁 Dự án của tôi</div>
+        <div class="hint" data-i18n="stMineHint">Nơi tạm giữ dự án chưa lưu ra file — gồm cả bản còn dở khi app tắt đột ngột.</div>
+        <div id="stMineList" class="st-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="printRoot"></div>
 <style id="pageStyle"></style>
 
@@ -1638,6 +1705,17 @@ function prjKey(id){ return "tiendo_prj_"+id; }
    Mỗi cửa sổ tự nhận một mã ngẫu nhiên rồi ghi dấu vào OPENKEY kèm mốc thời
    gian. Dấu cũ quá OPEN_TTL coi như cửa sổ đó đã chết, tự hết hiệu lực —
    không cần dọn dẹp, cửa sổ bị tắt đột ngột cũng không khóa vĩnh viễn. */
+const RECENTKEY = "tiendo_recent_v1";   // file .tdtc mở gần đây, cho màn hình đầu
+const RECENT_MAX = 15;
+function loadRecent(){ try{ return JSON.parse(LS.get(RECENTKEY))||[]; }catch(e){ return []; } }
+function pushRecent(p, nm){
+  if(!p) return;
+  try{
+    const list=loadRecent().filter(e=>e && e.path!==p);
+    list.unshift({path:p, name:nm||baseNameOf(p), ts:Date.now()});
+    LS.set(RECENTKEY, JSON.stringify(list.slice(0, RECENT_MAX)));
+  }catch(e){}
+}
 const OPENKEY = "tiendo_open_v1";
 const OPEN_TTL = 30000;   // ms
 const WINKEY = "w" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -5414,6 +5492,7 @@ function bindUI(){
         window._srcUrl = res.filePath || window._srcUrl || fileHandle.name;
         window._srcName = fileHandle.name;
         fileDirty = false; window._extDirty = false; window._docDirty = false; clearUnsavedFlag(currentId); updateFileLabel();
+        pushRecent(window._srcUrl, fileHandle.name);
         toast("💾 Đã lưu " + fileHandle.name);
         return true;
       }
@@ -7395,6 +7474,7 @@ function openExternalData(url, obj, fileInfo) {
     currentId = newId();
   }
   resetSession();
+  pushRecent(url, (fileInfo && fileInfo.name) || baseNameOf(url));
   releaseOpen(window._prevId);
   window._prevId = currentId;
   claimOpen(currentId);
@@ -7451,7 +7531,17 @@ async function recoverOne(id) {
   /* Phục hồi KHÔNG ghi đè file gốc. Nạp bản dở dang rồi CẮT liên kết tới file
      trên đĩa, nên 💾 Lưu mở hộp Lưu thành và ra một .tdtc KHÁC. File gốc chỉ
      đổi khi người dùng chủ động chọn đè lên nó. */
-  openExternalData(e.srcUrl || ("recover:" + id), st, { name: nmf || "project.tdtc", desktop: isDesk });
+  if (e.srcUrl) {
+    // có file: openExternalData tra theo srcUrl nên dùng lại ĐÚNG mục cũ
+    openExternalData(e.srcUrl, st, { name: nmf || "project.tdtc", desktop: isDesk });
+  } else {
+    /* Chưa từng có file: nạp thẳng và GIỮ NGUYÊN id. Đi qua openExternalData
+       sẽ sinh id mới, để lại mục cũ mắc kẹt trong danh sách phục hồi mãi. */
+    save();
+    state = st; currentId = id;
+    mergeDefaults(); resetSession(); renderAll();
+    claimOpen(currentId);
+  }
   window._srcUrl = null; window._extDirty = false;
   fileHandle = null; fileDirty = false;
   window._docDirty = true;              // vẫn là việc chưa ghi ra đĩa
@@ -7493,6 +7583,81 @@ function maybeShowRecovery(){
   if(!renderRecList()) return false;
   $("#recOverlay").style.display="flex";
   return true;
+}
+/* ===== Màn hình đầu ===== */
+function stHello(){
+  const h=new Date().getHours();
+  return h<11? t("stMorning") : (h<18? t("stAfternoon") : t("stEvening"));
+}
+function stRow(icon, name, sub, right, onclick){
+  const b=document.createElement("button");
+  b.className="st-item"; b.type="button";
+  const i=document.createElement("span"); i.className="ic"; i.textContent=icon;
+  const tx=document.createElement("span"); tx.className="tx";
+  const nm=document.createElement("div"); nm.className="nm"; nm.textContent=name;
+  tx.appendChild(nm);
+  if(sub){ const pa=document.createElement("div"); pa.className="pa"; pa.textContent=sub; pa.title=sub; tx.appendChild(pa); }
+  b.appendChild(i); b.appendChild(tx);
+  if(right){ const d=document.createElement("span"); d.className="dt"; d.textContent=right; b.appendChild(d); }
+  b.onclick=onclick;
+  return b;
+}
+function renderStart(){
+  const hl=$("#stHello"); if(hl) hl.textContent=stHello();
+  const vr=$("#stVer"); if(vr) vr.textContent=appVersionLabel();
+
+  const rc=$("#stRecentList");
+  if(rc){
+    rc.innerHTML="";
+    const list=loadRecent();
+    if(!list.length){ const d=document.createElement("div"); d.className="st-empty"; d.textContent=t("stNoRecent"); rc.appendChild(d); }
+    else list.forEach(e=>rc.appendChild(stRow("📄", e.name||baseNameOf(e.path), e.path,
+      new Date(e.ts||Date.now()).toLocaleDateString("vi-VN"), ()=>openRecent(e.path))));
+  }
+
+  const mn=$("#stMineList");
+  if(mn){
+    mn.innerHTML="";
+    /* Chỉ mục của cửa sổ khác mới bị loại — còn lại hiện hết, kể cả mục từ
+       bản cũ, để không ai mất dự án chỉ vì đổi cách hiểu My Project. */
+    const list=loadIndex().filter(e=>e && e.id!==currentId && !openElsewhere(e.id))
+      .slice().sort((a,b)=>(b.updated||0)-(a.updated||0));
+    if(!list.length){ const d=document.createElement("div"); d.className="st-empty"; d.textContent=t("stNoMine"); mn.appendChild(d); }
+    else list.forEach(e=>mn.appendChild(stRow(e.unsaved? "🛟" : "📁",
+      e.name||"Dự án", e.srcUrl? baseNameOf(e.srcUrl) : (e.unsaved? t("stUnsaved") : t("stOldItem")),
+      new Date(e.updated||Date.now()).toLocaleDateString("vi-VN"),
+      ()=>{ closeStart(); e.unsaved? recoverOne(e.id) : switchProject(e.id); })));
+  }
+}
+function openStart(){ renderStart(); const o=$("#startOverlay"); if(o) o.classList.add("on"); }
+function closeStart(){ const o=$("#startOverlay"); if(o) o.classList.remove("on"); }
+async function openRecent(p){
+  closeStart();
+  if(!(window.desktop && window.desktop.isElectron)){
+    toast("Bản trình duyệt không mở được theo đường dẫn — dùng 📂 Mở file…");
+    return;
+  }
+  // Cửa sổ này đã có tài liệu → mở ở cửa sổ riêng, như khi nhấp đúp file
+  if(fileHandle || window._srcUrl || stateHasContent()){
+    const r=await window.desktop.openWindow(p);
+    if(r && r.focused) toast("File này đang mở ở một cửa sổ khác");
+    return;
+  }
+  const res=await window.desktop.loadProjectFile(p);
+  if(!res || res.error || res.canceled){ toast("Không mở được file — có thể đã bị xóa hoặc đổi chỗ"); return; }
+  await openExternalDataAsk(res.filePath || p, res.data,
+    { name: res.fileName || baseNameOf(p), desktop: true });
+}
+function bindStart(){
+  const on=(id,fn)=>{ const el=$(id); if(el) el.onclick=fn; };
+  on("#stBlank", ()=>{ closeStart(); newProject(); toast(t("stBlankDone")); });
+  on("#stNavNew", ()=>{ closeStart(); newProject(); toast(t("stBlankDone")); });
+  on("#stNavHome", ()=>renderStart());
+  on("#stNavOpen", ()=>{ closeStart(); if(window._fileOps) window._fileOps.fileOpen(); });
+  on("#btnStart", ()=>openStart());
+  document.addEventListener("keydown", e=>{
+    if(e.key==="Escape" && $("#startOverlay").classList.contains("on")) closeStart();
+  });
 }
 function bindRecovery(){
   const l=$("#recLater");
@@ -7589,6 +7754,8 @@ async function initDesktopIntegration() {
   try {
     const initial = await window.desktop.getInitialOpenFile();
     if (initial) setTimeout(() => openDesktopFileRequest(initial), 0);
+    // Mở app trống → màn hình đầu, như MS Project
+    else setTimeout(() => { if (!window._srcUrl && !stateHasContent()) openStart(); }, 120);
   } catch (e) { }
 }
 
@@ -7806,6 +7973,13 @@ en:{tabFile:"File",tabTask:"Task",tabProject:"Project",tabView:"View",tabFormat:
  keepSub:"No deletes it for good — it will not appear in the project list next time.",
  bulkMsg:"{n} more project(s) are still only in 🗂 My Projects. Save them to .tdtc files?",
  bulkSub:"My Projects is a temporary holding area. Choosing No deletes these for good.",
+ stBrand:"Progress",stHome:"Home",stNew:"New",stOpen:"Open",stHomeBtn:"🏠 Start screen",
+ stNewSect:"New",stBlank:"Blank Project",stRecent:"Recent",stMine:"📁 My Projects",
+ stMineHint:"Temporary holding area for projects not yet saved to a file — including work left over when the app closed unexpectedly.",
+ stNoRecent:"No files opened yet.",stNoMine:"Nothing here — everything has been saved to a file.",
+ stUnsaved:"not saved to a file yet",stOldItem:"from an earlier version",
+ stMorning:"Good morning",stAfternoon:"Good afternoon",stEvening:"Good evening",
+ stBlankDone:"📄 New blank project",
  recOneSub:"Yes loads the unsaved version. No opens the file as it is on disk and drops the unsaved copy.",
  nmT:"Name this project",
  nmMsg:"The project will be stored in 🗂 My Projects under this name.",
@@ -7879,6 +8053,13 @@ vi:{tabFile:"Tệp",tabTask:"Công việc",tabProject:"Dự án",tabView:"Hiển
  keepSub:"Chọn Không là xóa hẳn — lần sau mở app sẽ không còn thấy dự án này trong danh sách.",
  bulkMsg:"Còn {n} dự án nữa mới chỉ nằm trong 🗂 Dự án của tôi. Lưu ra file .tdtc chứ?",
  bulkSub:"🗂 Dự án của tôi chỉ là chỗ đỗ tạm. Chọn Không là xóa hẳn những dự án dưới đây.",
+ stBrand:"Tiến độ",stHome:"Home",stNew:"New",stOpen:"Open",stHomeBtn:"🏠 Màn hình đầu",
+ stNewSect:"Tạo mới",stBlank:"Dự án trống",stRecent:"Gần đây",stMine:"📁 Dự án của tôi",
+ stMineHint:"Nơi tạm giữ dự án chưa lưu ra file — gồm cả bản còn dở khi app tắt đột ngột.",
+ stNoRecent:"Chưa mở file nào.",stNoMine:"Trống — mọi dự án đều đã lưu ra file.",
+ stUnsaved:"chưa lưu ra file",stOldItem:"từ bản trước",
+ stMorning:"Chào buổi sáng",stAfternoon:"Chào buổi chiều",stEvening:"Chào buổi tối",
+ stBlankDone:"📄 Dự án trống mới",
  recOneSub:"Chọn Có để nạp bản chưa lưu. Chọn Không thì mở đúng nội dung file trên đĩa và bỏ bản dở dang.",
  nmT:"Đặt tên dự án",
  nmMsg:"Dự án sẽ được cất trong 🗂 Dự án của tôi với tên này.",
@@ -7938,7 +8119,12 @@ $("#uiLang").onchange=e=>window.setLang(e.target.value);
 renderAll();
 bootOpenFromHash();
 initDesktopIntegration();
+bindStart();
 bindRecovery();
+/* Bản trình duyệt không có bước khởi tạo desktop nên mở màn hình đầu ở đây */
+if(!(window.desktop && window.desktop.isElectron) && !(location.hash||"").startsWith("#open=")){
+  setTimeout(()=>{ if(!stateHasContent()) openStart(); }, 120);
+}
 /* Chờ nhánh mở file trực tiếp (nhấp đúp .tdtc) giải quyết xong file của nó,
    rồi mới hỏi những mục dở dang còn lại. */
 setTimeout(maybeShowRecovery, 700);
@@ -7974,7 +8160,8 @@ window.APP = {
   hasPST, pstOrdinal, idxOfId, setProjectSummary, children, insertTasksAt, setScheduleMode, moveBlockTo, moveColumn, toggleCollapse, computeHidden, colIdxOf, autoRowH, barTextFS,
   colLabelOf, autoFitCol, autoFitRows, textPx, paintColSel, fmtStyleCss,
   switchProject, newProject, duplicateProject, deleteProject, loadIndex, saveIndex, prjKey, updateFileLabel, openExternalData,
-  isDiskDirty, hasUnsavedWork, baseNameOf, openElsewhere, parkProject, resolveParked, claimOpen, releaseOpen, loadOpenMap, OPENKEY, WINKEY, markUnsaved, clearUnsavedFlag, purgeProject, pendingRecovery, renderRecList, maybeShowRecovery, closeFlow, openExternalDataAsk, recoverOne, save,
+  isDiskDirty, hasUnsavedWork, baseNameOf, openElsewhere, parkProject, resolveParked,
+  loadRecent, pushRecent, renderStart, openStart, closeStart, RECENTKEY, claimOpen, releaseOpen, loadOpenMap, OPENKEY, WINKEY, markUnsaved, clearUnsavedFlag, purgeProject, pendingRecovery, renderRecList, maybeShowRecovery, closeFlow, openExternalDataAsk, recoverOne, save,
   get currentId(){ return currentId; },
   get colSel(){ return colSel; },
   selectCols(arr){ colSel=new Set(arr); paintColSel(); },

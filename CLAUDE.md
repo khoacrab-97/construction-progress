@@ -161,7 +161,23 @@ thì người dùng tự chọn đè lên nó.
 `isDiskDirty()` tính cả dự án **chưa từng ghi ra `.tdtc`** (`_docDirty` \+
 `stateHasContent()`); trước đây nhánh này luôn "sạch" nên tắt app không hỏi gì.
 
-### 3.7 Nhiều cửa sổ
+### 3.7 Màn hình đầu (Home / New / Open)
+
+Mở app không kèm file thì hiện màn hình kiểu Backstage của MS Project: rail
+trái **Home · New · Open**, bên phải **Dự án trống**, **Gần đây** và
+**📁 Dự án của tôi**. Mở lại bất cứ lúc nào bằng tab File → 🏠 Màn hình đầu.
+
+`tiendo_recent_v1` là khóa MỚI, chứa 15 file `.tdtc` mở gần nhất
+(`{path, name, ts}`). Ghi vào khi mở file và khi lưu ra file. Mở lại một file
+đã có trong danh sách thì nó nhảy lên đầu chứ không thành hai dòng.
+
+Cột **Dự án của tôi** hiện MỌI mục trừ mục đang mở ở cửa sổ khác — kể cả mục
+còn sót từ bản cũ, để không ai mất dự án chỉ vì app đổi cách hiểu chỗ này.
+Mục có cờ `unsaved` mang dấu 🛟, mục cũ mang dấu 📁.
+
+---
+
+### 3.8 Nhiều cửa sổ
 
 Mỗi file `.tdtc` mở thành **một `BrowserWindow` riêng** — Alt+Tab chỉ liệt kê
 cửa sổ thật của hệ điều hành nên tab bên trong app không đáp ứng được.
@@ -521,7 +537,7 @@ song ngữ, biểu đồ nhân lực.
 **Lưu \& phục hồi** — nhắc lưu kiểu MS Project cho cả dự án chưa có file, hộp
 phục hồi sau khi app đóng bất thường, không còn cảnh file cũ đè bản mới (xem 3.6).
 
-**Kiểm thử** — **22 bộ test, 880 assertion**, chạy trên jsdom, nằm trong `tests/`.
+**Kiểm thử** — **22 bộ test, 908 assertion**, chạy trên jsdom, nằm trong `tests/`.
 Chạy bằng `npm test`. Xem `tests/README.md` để biết cách viết thêm và quy trình
 chụp ảnh SVG.
 
