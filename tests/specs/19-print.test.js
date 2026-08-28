@@ -205,5 +205,45 @@ exports.run = function (t) {
       press(cellInput, "A");
       t.ok(editingCount() > 0, "chốt mới không được chặn nhầm phím của bảng");
     }
+
+    /* Bảng mặc định 40 dòng. Trước đây in trọn cả 40, hồ sơ đầy dòng trắng
+       ở cuối. Nay dừng ở dòng có dữ liệu cuối — nhưng dòng trống ở GIỮA thì
+       vẫn in, vì người dùng cố ý chừa ra để ngăn cách. */
+    t.case("in dừng ở dòng có dữ liệu cuối, không in đuôi dòng trắng");
+    const filled = Array.from({ length: 40 }, (_, i) =>
+      i < 6 ? { name: "Công việc " + (i + 1), dur: 3 } : { name: "", dur: 0 });
+    makeState(APP, { tasks: filled });
+    APP.renderAll();
+    t.eq(APP.state.tasks.length, 40, "bảng vẫn có đủ 40 dòng");
+    t.eq(APP.lastPrintRow(), 5, "dòng có dữ liệu cuối là dòng thứ 6 (chỉ số 5)");
+    APP.buildPrint();
+    const bodyRows = doc.querySelectorAll("#printRoot table.pgrid tr").length;
+    t.eq(bodyRows, 7, "bảng in: 1 hàng tiêu đề + 6 hàng dữ liệu, không phải 41");
+
+    t.case("dòng trống ở GIỮA vẫn được in");
+    makeState(APP, {
+      tasks: Array.from({ length: 40 }, (_, i) =>
+        (i === 0 || i === 5) ? { name: "Mốc " + i, dur: 2 } : { name: "", dur: 0 })
+    });
+    APP.renderAll();
+    t.eq(APP.lastPrintRow(), 5, "cắt theo dòng cuối có dữ liệu, không cắt ở khoảng trống");
+    APP.buildPrint();
+    t.eq(doc.querySelectorAll("#printRoot table.pgrid tr").length, 7,
+      "6 hàng dữ liệu gồm cả 4 dòng trống ở giữa");
+
+    t.case("dòng chỉ điền cột tùy chỉnh cũng được tính là có dữ liệu");
+    const tks = Array.from({ length: 10 }, () => ({ name: "", dur: 0 }));
+    tks[3].custom = { cc1: "ghi chú" };
+    makeState(APP, { tasks: tks, customCols: [{ id: "cc1", name: "Ghi chú" }] });
+    APP.renderAll();
+    t.eq(APP.lastPrintRow(), 3, "cắt theo tên thôi là mất dữ liệu của họ");
+
+    t.case("bảng trống hoàn toàn vẫn in được, không lỗi");
+    makeState(APP, { tasks: Array.from({ length: 20 }, () => ({ name: "", dur: 0 })) });
+    APP.renderAll();
+    t.eq(APP.lastPrintRow(), 0, "không có dữ liệu thì dừng ở dòng đầu");
+    APP.buildPrint();
+    t.ok(doc.querySelectorAll("#printRoot .pr-page").length >= 1, "vẫn dựng được trang");
+
   } finally { closeApp(APP); }
 };

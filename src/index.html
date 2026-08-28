@@ -1998,7 +1998,9 @@ function mergeDefaults(){
   state.font = Object.assign(defaultFont(), state.font||{});
   state.customCols = Array.isArray(state.customCols)? state.customCols : [];
   state.view = state.view==="histo" ? "histo" : "gantt";
-  state.histo = Object.assign({labels:1, table:0, h:0}, state.histo||{});
+  // ytX/ytY: vị trí chữ "NHÂN LỰC" do người dùng kéo. ytX cũng quyết định
+  // bề rộng máng trái, nên trục Y bị đẩy theo đúng khoảng đã kéo.
+  state.histo = Object.assign({labels:1, table:0, h:0, ytX:0, ytY:0.5}, state.histo||{});
   state.colW = Object.assign({}, state.colW||{});
   state.fieldSet = state.fieldSet||{}; // Field Settings
   if(state.pst===undefined) state.pst=false;
@@ -4224,28 +4226,11 @@ function buildHistoPrintSvg(chartH){
   const HO=state.histo||{labels:1,table:0};
   const tblH = HO.table? 22 : 0;
   const CH=chartH||280, padB=26, padT=14, H=HDR+padT+CH+padB+tblH+14;
-  const ns="http://www.w3.org/2000/svg";
-  const svg=document.createElementNS(ns,"svg");
-  svg.setAttribute("xmlns",ns);
-  svg.setAttribute("width",W); svg.setAttribute("height",H);
-  svg.setAttribute("viewBox","0 0 "+W+" "+H);
-  const y0=HDR+padT+CH; // đáy biểu đồ
 
-  svgEl("rect",{x:0,y:0,width:W,height:HDR,fill:"#eef2f5"},svg);
-  const gT=svgEl("g",{class:"tier"},svg);
-  top.forEach(cl=>{
-    svgEl("line",{x1:cl.x,y1:0,x2:cl.x,y2:HDR,stroke:"#aab7c2"},gT);
-    if(cl.w>34){ const t=svgEl("text",{x:cl.x+cl.w/2,y:15,"text-anchor":"middle","font-size":"10.5","font-weight":"600",fill:"#16222e"},gT);
-      t.textContent = cl.w>90? cl.label : cl.label.replace("Tháng ","T").replace("Năm ","").replace("Ngày ",""); }
-  });
-  svgEl("line",{x1:0,y1:23,x2:W,y2:23,stroke:"#d6dde3"},gT);
-  bottom.forEach(cl=>{
-    svgEl("line",{x1:cl.x,y1:23,x2:cl.x,y2:HDR,stroke:"#d6dde3"},gT);
-    if(cl.w>=13){ const t=svgEl("text",{x:cl.x+cl.w/2,y:38,"text-anchor":"middle","font-size":"10.5",fill:"#16222e"},gT); t.textContent=cl.label; }
-    svgEl("line",{x1:cl.x,y1:HDR,x2:cl.x,y2:y0,stroke:"#edf1f4"},svg);
-  });
-  svgEl("line",{x1:0,y1:HDR,x2:W,y2:HDR,stroke:"#16222e","stroke-width":"1.5"},svg);
-
+  /* Máng trái chứa chữ "NHÂN LỰC (người)" và các số của trục Y. Trước đây
+     không có máng: chữ vẽ ở x=12, số ở x=3, nên đè lên nhau. Bề rộng máng
+     bám theo vị trí chữ (ytX) — kéo chữ tới đâu trục đẩy tới đó. */
+  const YT_BAND=16;                       // bề dày chữ dọc
   const prof=resourceProfile(tl);
   // Trục Y trực quan: thang tròn số + khoảng trống ~15% phía trên cột cao nhất
   function niceCeil(v){
@@ -4256,14 +4241,43 @@ function buildHistoPrintSvg(chartH){
   }
   const rawMax=Math.max(...prof,1);
   const yMax=niceCeil(rawMax*1.15);
+  const ytX=Math.max(0, +HO.ytX||0);
+  const tickW=10+String(Math.round(yMax)).length*6;   // chỗ cho số trục Y
+  const padL=Math.round(ytX+YT_BAND+tickW);
+  const SW=padL+W;
+
+  const ns="http://www.w3.org/2000/svg";
+  const svg=document.createElementNS(ns,"svg");
+  svg.setAttribute("xmlns",ns);
+  svg.setAttribute("width",SW); svg.setAttribute("height",H);
+  svg.setAttribute("viewBox","0 0 "+SW+" "+H);
+  const y0=HDR+padT+CH; // đáy biểu đồ
+
+  svgEl("rect",{x:0,y:0,width:SW,height:HDR,fill:"#eef2f5"},svg);
+  // Mọi thứ bám trục thời gian vẽ trong nhóm đã dịch sang phải đúng bề máng
+  const P=svgEl("g",{transform:"translate("+padL+",0)"},svg);
+  const gT=svgEl("g",{class:"tier"},P);
+  top.forEach(cl=>{
+    svgEl("line",{x1:cl.x,y1:0,x2:cl.x,y2:HDR,stroke:"#aab7c2"},gT);
+    if(cl.w>34){ const t=svgEl("text",{x:cl.x+cl.w/2,y:15,"text-anchor":"middle","font-size":"10.5","font-weight":"600",fill:"#16222e"},gT);
+      t.textContent = cl.w>90? cl.label : cl.label.replace("Tháng ","T").replace("Năm ","").replace("Ngày ",""); }
+  });
+  svgEl("line",{x1:0,y1:23,x2:W,y2:23,stroke:"#d6dde3"},gT);
+  bottom.forEach(cl=>{
+    svgEl("line",{x1:cl.x,y1:23,x2:cl.x,y2:HDR,stroke:"#d6dde3"},gT);
+    if(cl.w>=13){ const t=svgEl("text",{x:cl.x+cl.w/2,y:38,"text-anchor":"middle","font-size":"10.5",fill:"#16222e"},gT); t.textContent=cl.label; }
+    svgEl("line",{x1:cl.x,y1:HDR,x2:cl.x,y2:y0,stroke:"#edf1f4"},P);
+  });
+  svgEl("line",{x1:0,y1:HDR,x2:W,y2:HDR,stroke:"#16222e","stroke-width":"1.5"},P);
+
   const scaleY=CH/yMax;
   const ppd=tl.ppd;
   const c = ppd>=7 ? 1 : Math.max(1, state.ts.count|0)*(state.ts.unit==="week"?7: state.ts.unit==="month"?30:1);
   const steps=5;
   for(let s2=1;s2<=steps;s2++){
     const v=Math.round(yMax*s2/steps*100)/100, y=y0-v*scaleY;
-    svgEl("line",{x1:0,y1:y,x2:W,y2:y,stroke:"#e3e9ee"},svg);
-    const t=svgEl("text",{x:3,y:y-2,"font-size":"9.5",fill:"#5b6b7a",class:"ytick"},svg);
+    svgEl("line",{x1:0,y1:y,x2:W,y2:y,stroke:"#e3e9ee"},P);
+    const t=svgEl("text",{x:padL-6,y:y-2,"text-anchor":"end","font-size":"9.5",fill:"#5b6b7a",class:"ytick"},svg);
     t.textContent=(v%1===0)?v:v.toFixed(1);
   }
   for(let k=0;k<tl.days;k+=c){
@@ -4271,33 +4285,36 @@ function buildHistoPrintSvg(chartH){
     for(let j=k;j<Math.min(k+c,tl.days);j++) v=Math.max(v,prof[j]);
     if(!v) continue;
     const x=k*ppd, w=Math.min(c,tl.days-k)*ppd, h=v*scaleY;
-    svgEl("rect",{x:x+0.5,y:y0-h,width:Math.max(w-1,1),height:h,fill:"#2e8b6e",opacity:"0.85"},svg);
+    svgEl("rect",{x:x+0.5,y:y0-h,width:Math.max(w-1,1),height:h,fill:"#2e8b6e",opacity:"0.85"},P);
     if(HO.labels && w>=8){
       const fs = w>=15 ? 9.5 : 8;
-      const t=svgEl("text",{x:x+w/2,y:y0-h-3,"text-anchor":"middle","font-size":fs,fill:"#16222e",class:"dlabel"},svg); t.textContent=v;
+      const t=svgEl("text",{x:x+w/2,y:y0-h-3,"text-anchor":"middle","font-size":fs,fill:"#16222e",class:"dlabel"},P); t.textContent=v;
     }
   }
-  svgEl("line",{x1:0,y1:y0,x2:W,y2:y0,stroke:"#16222e","stroke-width":"1.2"},svg);
+  svgEl("line",{x1:0,y1:y0,x2:W,y2:y0,stroke:"#16222e","stroke-width":"1.2"},P);
 
   // Tiêu đề trục Y (dọc) và trục X
-  const yt=svgEl("text",{x:12,y:HDR+padT+CH/2,"font-size":"10.5","font-weight":"600",fill:"#5b6b7a",
-    "text-anchor":"middle",transform:"rotate(-90 12 "+(HDR+padT+CH/2)+")",class:"axis-title"},svg);
+  const ytY=Math.min(1, Math.max(0, HO.ytY==null? 0.5 : +HO.ytY));
+  const ytCx=ytX+YT_BAND/2, ytCy=HDR+padT+CH*ytY;
+  const yt=svgEl("text",{x:ytCx,y:ytCy,"font-size":"10.5","font-weight":"600",fill:"#5b6b7a",
+    "text-anchor":"middle",transform:"rotate(-90 "+ytCx+" "+ytCy+")",
+    class:"axis-title yTitle",style:"cursor:move"},svg);
   yt.textContent="NHÂN LỰC (người)";
-  const xt=svgEl("text",{x:W-6,y:y0+16,"font-size":"10.5","font-weight":"600",fill:"#5b6b7a","text-anchor":"end",class:"axis-title"},svg);
+  const xt=svgEl("text",{x:W-6,y:y0+16,"font-size":"10.5","font-weight":"600",fill:"#5b6b7a","text-anchor":"end",class:"axis-title"},P);
   const _bl=((state.ts.tiers||{}).bot||{}).label||"";
   xt.textContent = _bl.indexOf("ord")===0 ? "THỜI GIAN (đếm thứ tự)" : "THỜI GIAN";
 
   // Data table: giá trị đỉnh theo từng ô của trục thời gian (như Excel)
   if(HO.table){
     const yT=y0+padB-6;
-    svgEl("line",{x1:0,y1:yT,x2:W,y2:yT,stroke:"#aab7c2"},svg);
-    svgEl("line",{x1:0,y1:yT+tblH,x2:W,y2:yT+tblH,stroke:"#aab7c2"},svg);
+    svgEl("line",{x1:0,y1:yT,x2:W,y2:yT,stroke:"#aab7c2"},P);
+    svgEl("line",{x1:0,y1:yT+tblH,x2:W,y2:yT+tblH,stroke:"#aab7c2"},P);
     bottom.forEach(cl=>{
-      svgEl("line",{x1:cl.x,y1:yT,x2:cl.x,y2:yT+tblH,stroke:"#e3e9ee"},svg);
+      svgEl("line",{x1:cl.x,y1:yT,x2:cl.x,y2:yT+tblH,stroke:"#e3e9ee"},P);
       const k1=Math.round(cl.x/ppd), k2=Math.min(tl.days, Math.round((cl.x+cl.w)/ppd));
       let v=0; for(let j=k1;j<k2;j++) v=Math.max(v, prof[j]||0);
       if(cl.w>=13){
-        const t=svgEl("text",{x:cl.x+cl.w/2,y:yT+15,"text-anchor":"middle","font-size":"9.5",fill:"#16222e",class:"dtable"},svg);
+        const t=svgEl("text",{x:cl.x+cl.w/2,y:yT+15,"text-anchor":"middle","font-size":"9.5",fill:"#16222e",class:"dtable"},P);
         t.textContent = v||"";
       }
     });
@@ -4533,6 +4550,21 @@ function buildPrintSection(title, contentEl, contentW, contentH, forcedZ, pageNo
   return page;
 }
 
+/* Dòng CÓ dữ liệu cuối cùng. In dừng ở đây thay vì in trọn state.tasks —
+   bảng mặc định 40 dòng nên hồ sơ trước đây đầy dòng trắng ở cuối.
+   Dòng trống ở GIỮA vẫn in bình thường, chỉ cắt phần đuôi.
+   Xét mọi trường chứ không chỉ tên: có người chỉ điền cột tùy chỉnh, cắt theo
+   tên thôi là mất dữ liệu của họ. */
+function lastPrintRow(){
+  const has=v=>String(v==null?"":v).trim()!=="";
+  for(let i=state.tasks.length-1;i>=0;i--){
+    const tk=state.tasks[i];
+    if(!tk || tk._pst) continue;   // dòng tổng dự án luôn ở đầu, không phải đuôi
+    if(has(tk.name)||has(tk.res)||has(tk.preds)||has(tk.mStart)) return i;
+    if(tk.custom && Object.keys(tk.custom).some(k=>has(tk.custom[k]))) return i;
+  }
+  return 0;
+}
 function buildPrint(){
   compute();
   // phạm vi thời gian in (từ ngày → đến ngày)
@@ -4585,16 +4617,23 @@ function buildPrint(){
           + 46);
       }
       const availPx=Math.max(180, pr.h - chromePx);
+      // Chiều cao THỰC sẽ in: tới dòng có dữ liệu cuối, không phải cả bảng.
+      // Đo cả 40 dòng thì "Vừa 1 trang" thu nhỏ theo phần trắng, chữ bé vô cớ.
+      const _lastFit=lastPrintRow();
+      const _gFit=rowGeo[_lastFit];
+      const printedH=_gFit? (_gFit.y+_gFit.h) : rowsTotalH;
       let z;
       if(p.scale==="fitw") z=Math.min(pr.w/contentW, 1.4);
-      else if(p.scale==="fit1") z=Math.min(pr.w/contentW, availPx/(HDR+rowsTotalH+8), 1.4);
+      else if(p.scale==="fit1") z=Math.min(pr.w/contentW, availPx/(HDR+printedH+8), 1.4);
       else z=(+p.scale||100)/100;
       z=Math.max(z,0.05);
       const budget=availPx/z - HDR; // quỹ chiều cao hàng mỗi trang (đơn vị nội dung)
 
       // gom hàng hiển thị thành từng trang
       const pages=[]; let cur=null;
+      const lastRow=lastPrintRow();
       state.tasks.forEach((tk,i)=>{
+        if(i>lastRow) return;            // đuôi dòng trắng — không in
         const g0=rowGeo[i];
         if(!g0 || g0.h===0) return;
         if(!cur || (cur.h+g0.h>budget && cur.h>0)){
@@ -4603,7 +4642,7 @@ function buildPrint(){
         }
         cur.b=i; cur.h=(g0.y+g0.h)-cur.top;
       });
-      if(!pages.length) pages.push({a:0, b:state.tasks.length-1, top:0, h:rowsTotalH});
+      if(!pages.length) pages.push({a:0, b:lastRow, top:0, h:printedH});
       // Trang CUỐI phải chừa chỗ cho footer (footer chỉ in trang cuối):
       // nếu nội dung trang cuối lấn vào vùng footer → tách hàng dư sang trang mới
       if(p.ftr && (p.ftr.boxes||[]).length){
@@ -4751,6 +4790,26 @@ function renderHistoFull(){
   const svg=buildHistoPrintSvg(h);
   svg.id="histoFullSvg";
   old.replaceWith(svg);
+  /* Kéo chữ "NHÂN LỰC": ngang để nới máng trái (trục Y đẩy theo đúng ngần
+     đó), dọc để đặt vị trí dọc theo trục. Lưu vào state nên bản in dùng lại
+     đúng chỗ đã đặt. */
+  const ytEl=svg.querySelector(".yTitle");
+  if(ytEl) ytEl.addEventListener("mousedown", e=>{
+    e.preventDefault();
+    const r=svg.getBoundingClientRect(), wAttr=+svg.getAttribute("width")||1;
+    const sc=(r.width>0)? r.width/wAttr : 1;
+    const cx=e.clientX, cy=e.clientY;
+    const ox=+state.histo.ytX||0;
+    const oy=(state.histo.ytY==null? 0.5 : +state.histo.ytY);
+    const chartH=Math.max(160, state.histo.h||h);
+    const mv=ev=>{
+      state.histo.ytX=Math.max(0, Math.min(200, ox+(ev.clientX-cx)/sc));
+      state.histo.ytY=Math.max(0, Math.min(1, oy+(ev.clientY-cy)/sc/chartH));
+      renderHistoFull();
+    };
+    const up=()=>{ removeEventListener("mousemove",mv); removeEventListener("mouseup",up); save(); };
+    addEventListener("mousemove",mv); addEventListener("mouseup",up);
+  });
   // thanh kéo giãn phạm vi vùng cột biểu đồ
   let rz=pane.querySelector("#histoResizer");
   if(!rz){
@@ -7789,7 +7848,7 @@ window.APP = {
   compute, parsePreds, resUnits, isWork, addWork, workSpan,
   addTask, delTask, indent, moveBlock, renderAll, fromISO, toISO, fmtDMY, parseDMY,
   isSummary, blockEnd, buildTimeline, resourceProfile,
-  buildPrint, buildPrintTable, buildHistoPrintSvg, prToken, defaultPrint, printableSizePx, printTableWidth,
+  buildPrint, buildPrintTable, buildHistoPrintSvg, lastPrintRow, prToken, defaultPrint, printableSizePx, printTableWidth,
   sectShow, sectText, normPrintSect, normFtr, ftrHeightPx, sideStyle, mergeDefaults, stateHasContent,
   sanRT, escKeepBIU, rtRead, rtWrite, focusCell, selectRange, fillDown, edgeCell,
   applyPaste, copyTableTSV, labelVal, defaultBarStyle, defaultFont, applyFont, activePrintCols, measureRows,
