@@ -2044,6 +2044,13 @@ function stateHasContent(){ return stateHasContentOf(state); }
 function resetSession(){
   window._fresh=false;
   fileHandle=null; fileDirty=false;
+  /* CẮT liên kết tới file .tdtc. Trước đây chỉ xóa fileHandle mà bỏ sót
+     _srcUrl/_srcName — đường dẫn desktop — nên sau khi bấm New: thanh tiêu đề
+     vẫn hiện tên file cũ, và save() gắn luôn đường dẫn file cũ vào mục danh
+     mục của DỰ ÁN MỚI. openExternalData gọi resetSession() TRƯỚC rồi mới đặt
+     _srcUrl nên nhánh mở file không bị ảnh hưởng. */
+  window._srcUrl=null; window._srcName=""; window._extDirty=false;
+  tellPath(null);
   selRow=-1; rowSel.clear(); cellSel.clear(); colSel.clear();
   undoStack.length=0; redoStack.length=0; currentSnap=null;
   window._docDirty=false;
@@ -2064,6 +2071,18 @@ function switchProject(id){
   resetSession();
   renderAll(); updateFileLabel();
   toast("Đã mở: "+state.name);
+}
+/* Rule của người dùng: đang mở một tài liệu mà bấm New thì dự án mới nằm ở
+   CỬA SỔ KHÁC, cửa sổ này giữ nguyên file đang mở. Trả về true nếu đã tạo
+   ngay tại chỗ (cửa sổ còn trống). */
+async function newProjectWindow(){
+  if(window.desktop && window.desktop.isElectron
+     && (window._srcUrl || fileHandle || stateHasContent())){
+    await window.desktop.openWindow(null);
+    return false;
+  }
+  newProject();
+  return true;
 }
 function newProject(fromState, name){
   save();
@@ -5716,7 +5735,9 @@ function bindUI(){
   $("#btnFileOpen").onclick = () => guardUnsaved(fileOpen);
   $("#btnFileSave").onclick = () => fileSave(false);
   $("#btnFileSaveAs").onclick = () => fileSave(true);
-  $("#btnNewPrj").onclick = () => guardUnsaved(() => { newProject(); toast("Đã tạo dự án mới — dự án cũ vẫn trong 🗂 Dự án của tôi"); });
+  $("#btnNewPrj").onclick = async () => {
+    if(await newProjectWindow()) toast("Đã tạo dự án mới");
+  };
 
   // Modal Dự án của tôi
   const PJ=$("#prjOverlay");
@@ -5760,7 +5781,7 @@ function bindUI(){
     renderPrjList(); PJ.style.display="flex";
   };
   $("#prjClose").onclick=()=>PJ.style.display="none";
-  $("#prjNew").onclick=()=>{ newProject(); PJ.style.display="none"; toast("Đã tạo dự án mới"); };
+  $("#prjNew").onclick=async ()=>{ PJ.style.display="none"; if(await newProjectWindow()) toast("Đã tạo dự án mới"); };
   $("#prjOpenFile").onclick=()=>{ PJ.style.display="none"; fileOpen(); };
 
   // cảnh báo đóng khi file chưa lưu
@@ -7832,7 +7853,7 @@ async function openRecent(p){
 }
 function bindStart(){
   const on=(id,fn)=>{ const el=$(id); if(el) el.onclick=fn; };
-  const blank=()=>{ closeStart(); newProject(); toast(t("stBlankDone")); };
+  const blank=async ()=>{ closeStart(); if(await newProjectWindow()) toast(t("stBlankDone")); };
   on("#stBlank", blank);
   on("#stBlank2", blank);
   on("#stBack", ()=>closeStart());
@@ -8376,7 +8397,7 @@ window.APP = {
   offerUpdate, showUpdRibbonBtn, downloadDesktopUpdate,
   hasPST, pstOrdinal, idxOfId, setProjectSummary, children, insertTasksAt, setScheduleMode, moveBlockTo, moveColumn, toggleCollapse, computeHidden, colIdxOf, autoRowH, barTextFS,
   colLabelOf, autoFitCol, autoFitRows, textPx, paintColSel, fmtStyleCss,
-  switchProject, newProject, duplicateProject, deleteProject, loadIndex, saveIndex, prjKey, updateFileLabel, openExternalData,
+  switchProject, newProject, newProjectWindow, duplicateProject, deleteProject, loadIndex, saveIndex, prjKey, updateFileLabel, openExternalData,
   isDiskDirty, hasUnsavedWork, baseNameOf, openElsewhere, parkProject, resolveParked,
   loadRecent, pushRecent, renderStart, openStart, closeStart, RECENTKEY, stPane, renderOpenPane, renderSaveAsPane, stHomeTab, claimOpen, releaseOpen, loadOpenMap, OPENKEY, WINKEY, markUnsaved, clearUnsavedFlag, purgeProject, pendingRecovery, renderRecList, maybeShowRecovery, closeFlow, openExternalDataAsk, recoverOne, save,
   get currentId(){ return currentId; },
