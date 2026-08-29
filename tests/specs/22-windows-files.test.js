@@ -5,9 +5,9 @@
    · Mỗi dự án là MỘT CỬA SỔ riêng. Mở file .tdtc, hay bấm New khi cửa sổ đã
      có tài liệu, đều ra cửa sổ mới.
    · Đóng cửa sổ nào thì hỏi đúng tài liệu của cửa sổ đó — hộp Có/Không/Hủy.
-     Chọn "Không" thì dự án VẪN nằm lại trong 🗂 Dự án của tôi.
-   · 🗂 Dự án của tôi chỉ là kho lưu tạm, KHÔNG có quy tắc dọn dẹp nào và
-     KHÔNG còn cơ chế hỏi phục hồi sau khi app tắt đột ngột.                */
+     Chọn "Không" = bỏ hẳn, dự án bị GỠ khỏi 🗂 Dự án của tôi.
+   · KHÔNG còn cơ chế hỏi phục hồi sau khi app tắt đột ngột. Quy tắc đầy đủ
+     cho 🗂 Dự án của tôi sẽ được định nghĩa sau.                            */
 const { loadApp, closeApp, makeState } = require("../helpers/env");
 
 const tick = () => new Promise(r => setTimeout(r, 0));
@@ -47,15 +47,27 @@ exports.run = async function (t) {
     $("#svCancel").onclick();
     t.eq(await p, false, "chọn Hủy → ở lại, không đóng");
 
-    t.case("chọn Không thì đóng được, và dự án VẪN nằm lại trong My Project");
+    t.case("chọn Không thì đóng được, và dự án bị GỠ khỏi My Project");
+    /* Người dùng không muốn thứ dở dang nằm lại trong 🗂 Dự án của tôi. */
     const idA = APP.currentId;
     p = APP.closeFlow();
     await tick();
     $("#svNo").onclick();
     t.eq(await p, true, "được phép đóng cửa sổ");
-    t.ok(LS.getItem("tiendo_prj_" + idA) !== null,
-      "My Project là kho lưu tạm — không xóa gì của người dùng");
-    t.ok(APP.loadIndex().some(e => e.id === idA), "mục danh mục còn nguyên");
+    t.eq(LS.getItem("tiendo_prj_" + idA), null, "đã xóa nội dung dự án");
+    t.ok(!APP.loadIndex().some(e => e.id === idA), "đã gỡ khỏi danh mục");
+
+    t.case("chọn Hủy thì KHÔNG xóa gì");
+    LS.clear();
+    win._srcUrl = null; win._extDirty = false; win._docDirty = false;
+    makeState(APP, { name: "Giữ lại", tasks: [{ name: "Cống D600", dur: 4 }] });
+    APP.save();
+    const idKeep = APP.currentId;
+    p = APP.closeFlow();
+    await tick();
+    $("#svCancel").onclick();
+    t.eq(await p, false, "ở lại");
+    t.ok(LS.getItem("tiendo_prj_" + idKeep) !== null, "dự án còn nguyên");
 
     t.case("không có gì chưa lưu thì đóng thẳng, không hỏi");
     LS.clear();
@@ -128,6 +140,20 @@ exports.run = async function (t) {
     t.eq(APP.baseNameOf(null), "");
 
     /* ---------- Backstage ---------- */
+    t.case("cửa sổ mở cho lệnh New vào thẳng bảng, không dừng ở Backstage");
+    /* main.js nạp cửa sổ đó kèm hash #blank; renderer thấy hash này thì bỏ
+       qua màn hình Backstage vì người dùng đã chọn "dự án trống" rồi. */
+    const html = require("fs").readFileSync(
+      require("path").join(__dirname, "..", "..", "src", "index.html"), "utf8");
+    t.ok(html.indexOf('openWindow(null, { blank: true })') >= 0,
+      "New xin cửa sổ trống kèm cờ blank");
+    t.ok(html.indexOf('(location.hash || "") !== "#blank"') >= 0,
+      "renderer bỏ qua Backstage khi mang hash #blank");
+    const mainJs = require("fs").readFileSync(
+      require("path").join(__dirname, "..", "..", "electron", "main.js"), "utf8");
+    t.ok(mainJs.indexOf('{ hash: "blank" }') >= 0, "main.js nạp kèm hash đó");
+    t.ok(mainJs.indexOf("function createWindow(filePath, opts)") >= 0, "createWindow nhận tuỳ chọn");
+
     t.case("Backstage có đủ rail và năm vùng");
     ["#startOverlay", "#stBack", "#stSave", "#stPrint", "#stCloseDoc",
       "#stBlank", "#stRecentList", "#stMineList", "#stHello", "#stVer",

@@ -104,20 +104,23 @@ Hai chỗ chứa dữ liệu, vai trò khác nhau:
 * **File `.tdtc`** — bản chính thức để lưu trữ và chia sẻ, chỉ được ghi khi
 người dùng bấm lưu.
 * **🗂 Dự án của tôi** (localStorage) — **kho lưu tạm**. `save()` chạy sau mỗi
-lần sửa một ô nên mất điện chỉ mất đúng ô đang gõ dở, và mở app lần sau dự án
-vẫn còn trong danh sách. **Không có quy tắc dọn dẹp nào** — app không tự xóa
-gì của người dùng ở đây.
+lần sửa một ô nên mất điện chỉ mất đúng ô đang gõ dở. Đóng cửa sổ mà chọn
+"Không lưu" thì dự án bị gỡ khỏi đây — người dùng không muốn thứ dở dang nằm
+lại. **Quy tắc đầy đủ cho chỗ này sẽ được định nghĩa sau.**
 
 **Đóng cửa sổ** — `closeFlow()`, chỉ một hộp cho tài liệu của cửa sổ đó:
 
 ```
 Hộp Có / Không / Hủy   (chỉ hiện khi hasUnsavedWork())
   Có     → ghi ra .tdtc rồi đóng
-  Không  → đóng luôn; dự án VẪN nằm lại trong 🗂 Dự án của tôi
+  Không  → bỏ hẳn: GỠ dự án khỏi 🗂 Dự án của tôi luôn
   Hủy    → ở lại
 ```
 
 Mỗi dự án là một cửa sổ riêng nên đóng cửa sổ nào thì hỏi đúng cửa sổ đó.
+
+Cửa sổ mở cho lệnh **New** được nạp kèm hash `#blank` nên vào **thẳng bảng
+trống**, không dừng ở Backstage — người dùng đã chọn "dự án trống" rồi.
 
 > **Đã gỡ hẳn (26.08.008).** Trước đây có cơ chế phục hồi sau khi app tắt đột
 > ngột: cờ `unsaved` trên từng mục, hộp 🛟 liệt kê bản dở dang lúc khởi động,
@@ -471,8 +474,8 @@ nhân thường gặp khi người dùng báo "chạy quan hệ không đúng".
 9. **Dòng tổng dự án** luôn ở đầu, mang số 0, in đậm mặc định, không giảm cấp được.
 10. **Auto fit** = phạm vi từ ngày sớm nhất đến muộn nhất, cộng chỗ cho nhãn chữ.
 Khi bật, **Size % và cuộn vô hạn không có tác dụng** (mâu thuẫn bản chất).
-11. **Chọn "Không lưu" lúc đóng cửa sổ** chỉ có nghĩa là không ghi ra `.tdtc`.
-Dự án vẫn nằm lại trong 🗂 Dự án của tôi — app không xóa gì của người dùng.
+11. **Chọn "Không lưu" lúc đóng cửa sổ là bỏ hẳn**: không ghi ra `.tdtc`, và
+dự án bị gỡ luôn khỏi 🗂 Dự án của tôi.
 
 \---
 
@@ -521,7 +524,7 @@ song ngữ, biểu đồ nhân lực.
 
 **Lưu** — nhắc lưu kiểu MS Project khi đóng cửa sổ, cho cả dự án chưa có file.
 
-**Kiểm thử** — **22 bộ test, 860 assertion**, chạy trên jsdom, nằm trong `tests/`.
+**Kiểm thử** — **22 bộ test, 866 assertion**, chạy trên jsdom, nằm trong `tests/`.
 Chạy bằng `npm test`. Xem `tests/README.md` để biết cách viết thêm và quy trình
 chụp ảnh SVG.
 
@@ -576,7 +579,7 @@ hoạch và thực hiện. Phụ thuộc việc 1.
 |11|**Không đổi `publish` trong `package.json`**; không bật lại `verifyUpdateCodeSignature` khi chưa ký mã|Cập nhật thất bại im lặng trên mọi máy|
 |12|**Không bỏ `latest.yml` / `.blockmap`** khỏi asset release|`electron-updater` đọc không được, tự cập nhật chết|
 |13|**Không để `resetSession()` bỏ sót `_srcUrl` / `_srcName`** khi cắt liên kết file|Bấm New xong, cửa sổ vẫn "giữ" file cũ: tiêu đề hiện tên cũ và `save()` gắn đường dẫn cũ vào mục danh mục của dự án MỚI. Đã xảy ra|
-|14|**Không tự xóa mục nào trong 🗂 Dự án của tôi**|Người dùng đã chốt: đó là kho lưu tạm, app không dọn hộ. Quy tắc mới sẽ định nghĩa sau|
+|14|**Chỉ được xóa mục trong 🗂 Dự án của tôi ở đúng một chỗ**: nhánh "Không lưu" của `closeFlow()`|Người dùng chốt: thứ dở dang không được nằm lại. Xóa ở chỗ khác là mất dữ liệu ngoài ý muốn|
 |15|**Không đưa đường dẫn file (hay bất cứ trạng thái tài liệu nào) về biến dùng chung trong `main.js`**|Lưu ở cửa sổ này ghi đè file của cửa sổ kia|
 
 ### 13.2 Bắt buộc làm mỗi lần sửa

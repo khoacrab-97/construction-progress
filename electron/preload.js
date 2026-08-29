@@ -29,7 +29,7 @@ contextBridge.exposeInMainWorld("desktop", {
   getInitialOpenFile: () => ipcRenderer.invoke("app:get-initial-open-file"),
   setWindowTitle: (title) => ipcRenderer.invoke("app:set-window-title", title),
   closeAfterConfirm: () => ipcRenderer.invoke("app:close-after-confirm"),
-  openWindow: (filePath) => ipcRenderer.invoke("app:open-window", filePath || null),
+  openWindow: (filePath, opts) => ipcRenderer.invoke("app:open-window", filePath || null, opts || null),
   setProjectPath: (filePath) => ipcRenderer.invoke("project:set-path", filePath || null),
   checkForUpdates: () => ipcRenderer.invoke("updates:check"),
   downloadUpdate: () => ipcRenderer.invoke("updates:download"),

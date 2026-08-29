@@ -96,7 +96,9 @@ async function writeProjectFile(filePath, jsonText, wcId) {
   };
 }
 
-function createWindow(filePath) {
+/* opts.blank = cửa sổ mở cho lệnh New: nạp kèm hash #blank để renderer vào
+   thẳng bảng trống, không dừng ở màn hình Backstage. */
+function createWindow(filePath, opts) {
   const iconPath = path.join(__dirname, "..", "assets", "icon.ico");
   const browserWindowOptions = {
     title: APP_NAME,
@@ -153,7 +155,8 @@ function createWindow(filePath) {
     allowClose.delete(wcId);
   });
 
-  win.loadFile(path.join(__dirname, "..", "src", "index.html"));
+  win.loadFile(path.join(__dirname, "..", "src", "index.html"),
+    (opts && opts.blank) ? { hash: "blank" } : undefined);
   return win;
 }
 
@@ -234,8 +237,8 @@ ipcMain.handle("app:get-initial-open-file", (event) => {
 });
 
 /* Renderer nhờ mở một cửa sổ mới — cho file, hoặc trống khi truyền null */
-ipcMain.handle("app:open-window", (_event, filePath) => {
-  if (!filePath) { createWindow(null); return { opened: true }; }
+ipcMain.handle("app:open-window", (_event, filePath, opts) => {
+  if (!filePath) { createWindow(null, opts); return { opened: true }; }
   return openFileWindow(filePath);
 });
 

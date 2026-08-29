@@ -2008,7 +2008,7 @@ function switchProject(id){
 async function newProjectWindow(){
   if(window.desktop && window.desktop.isElectron
      && (window._srcUrl || fileHandle || stateHasContent())){
-    await window.desktop.openWindow(null);
+    await window.desktop.openWindow(null, { blank: true });
     return false;
   }
   newProject();
@@ -7716,12 +7716,14 @@ async function confirmDesktopClose() {
               giữ  → đặt tên rồi đóng
               không → xóa hẳn khỏi danh mục rồi đóng */
 async function closeFlow() {
-  /* Chỉ còn hộp Có/Không/Hủy cho tài liệu của CỬA SỔ NÀY — mỗi dự án là một
-     cửa sổ riêng nên đóng cửa sổ nào thì hỏi đúng cửa sổ đó.
-     Chọn "Không" thì dự án VẪN nằm lại trong 🗂 Dự án của tôi: chỗ đó nay chỉ
-     là kho lưu tạm, không có quy tắc dọn dẹp nào. */
+  /* Một hộp Có/Không/Hủy cho tài liệu của CỬA SỔ NÀY — mỗi dự án là một cửa
+     sổ riêng nên đóng cửa sổ nào thì hỏi đúng cửa sổ đó.
+     Chọn "Không" = bỏ hẳn: dự án được GỠ khỏi 🗂 Dự án của tôi luôn, vì người
+     dùng không muốn thứ dở dang nằm lại đó. */
   const choice = window.guardUnsavedChoice ? await window.guardUnsavedChoice(true) : "clean";
-  return choice !== "cancel";
+  if (choice === "cancel") return false;
+  if (choice === "no") purgeProject(currentId);
+  return true;
 }
 
 async function initDesktopIntegration() {
@@ -7744,8 +7746,10 @@ async function initDesktopIntegration() {
   try {
     const initial = await window.desktop.getInitialOpenFile();
     if (initial) setTimeout(() => openDesktopFileRequest(initial), 0);
-    // Mở app trống → màn hình đầu, như MS Project
-    else setTimeout(() => { if (!window._srcUrl && !stateHasContent()) openStart(); }, 120);
+    /* Mở app trống → màn hình đầu, như MS Project. Trừ cửa sổ dựng cho lệnh
+       New (#blank): người dùng đã chọn "dự án trống" rồi, vào thẳng bảng. */
+    else if ((location.hash || "") !== "#blank")
+      setTimeout(() => { if (!window._srcUrl && !stateHasContent()) openStart(); }, 120);
   } catch (e) { }
 }
 
