@@ -1623,7 +1623,7 @@ table.pgrid td.n{text-align:center;font-variant-numeric:tabular-nums}
       <div class="st-head"><span class="ic">📄</span><span class="tx" data-i18n="stColName">Tên</span><span class="dt" data-i18n="stColDate">Ngày sửa</span></div>
       <div id="stRecentList" class="st-list"></div>
       <div id="stMineWrap" style="display:none">
-        <div class="st-hint" style="margin:8px 0" data-i18n="stMineHint">Nơi tạm giữ dự án chưa lưu ra file — gồm cả bản còn dở khi app tắt đột ngột.</div>
+        <div class="st-hint" style="margin:8px 0" data-i18n="stMineHint">Phần việc còn lại từ lần app tắt đột ngột. Đóng cửa sổ bình thường thì chỗ này không còn gì.</div>
         <div id="stMineList" class="st-list"></div>
       </div>
     </div>
@@ -2002,15 +2002,21 @@ function switchProject(id){
   renderAll(); updateFileLabel();
   toast("Đã mở: "+state.name);
 }
-/* Rule của người dùng: đang mở một tài liệu mà bấm New thì dự án mới nằm ở
-   CỬA SỔ KHÁC, cửa sổ này giữ nguyên file đang mở. Trả về true nếu đã tạo
-   ngay tại chỗ (cửa sổ còn trống). */
+/* Rule của người dùng: mỗi lần bấm Dự án trống là THÊM MỘT CỬA SỔ.
+   Ngoại lệ duy nhất: cửa sổ vừa mở app, chưa có tài liệu nào và đang đứng ở
+   Backstage — dùng luôn cửa sổ đó, nếu không sẽ để lại một cửa sổ Backstage
+   trống chẳng dùng vào việc gì. Trả về true nếu tạo ngay tại chỗ. */
 async function newProjectWindow(){
-  if(window.desktop && window.desktop.isElectron
-     && (window._srcUrl || fileHandle || stateHasContent())){
-    await window.desktop.openWindow(null, { blank: true });
-    return false;
+  if(window.desktop && window.desktop.isElectron){
+    const ov=$("#startOverlay");
+    const dungCuaSoNay = !window._srcUrl && !fileHandle && !stateHasContent()
+      && ov && ov.classList.contains("on");
+    if(!dungCuaSoNay){
+      await window.desktop.openWindow(null, { blank: true });
+      return false;
+    }
   }
+  closeStart();     // đóng ở ĐÂY, sau khi đã xét xong điều kiện
   newProject();
   return true;
 }
@@ -7649,7 +7655,9 @@ async function openRecent(p){
 }
 function bindStart(){
   const on=(id,fn)=>{ const el=$(id); if(el) el.onclick=fn; };
-  const blank=async ()=>{ closeStart(); if(await newProjectWindow()) toast(t("stBlankDone")); };
+  /* KHÔNG đóng Backstage trước: newProjectWindow phải xét được "cửa sổ này
+     đang đứng ở Backstage hay không" rồi mới quyết. */
+  const blank=async ()=>{ if(await newProjectWindow()) toast(t("stBlankDone")); };
   on("#stBlank", blank);
   on("#stBlank2", blank);
   on("#stBack", ()=>closeStart());
@@ -7718,11 +7726,16 @@ async function confirmDesktopClose() {
 async function closeFlow() {
   /* Một hộp Có/Không/Hủy cho tài liệu của CỬA SỔ NÀY — mỗi dự án là một cửa
      sổ riêng nên đóng cửa sổ nào thì hỏi đúng cửa sổ đó.
-     Chọn "Không" = bỏ hẳn: dự án được GỠ khỏi 🗂 Dự án của tôi luôn, vì người
-     dùng không muốn thứ dở dang nằm lại đó. */
+
+     🗂 Dự án của tôi chỉ giữ BẢN TẠM của tài liệu đang mở. Đóng cửa sổ tử tế
+     là kết thúc phiên làm việc nên bản tạm bị dọn — dù người dùng chọn Có
+     (đã ghi ra .tdtc) hay Không (bỏ thay đổi). Nhờ vậy thứ CÒN LẠI trong MP
+     lúc khởi động chính là đồ của lần app chết đột ngột, không cần cờ nào.
+     Chỉ "Hủy" mới giữ nguyên, vì phiên làm việc vẫn tiếp tục. */
   const choice = window.guardUnsavedChoice ? await window.guardUnsavedChoice(true) : "clean";
   if (choice === "cancel") return false;
-  if (choice === "no") purgeProject(currentId);
+  releaseOpen(currentId);
+  purgeProject(currentId);
   return true;
 }
 
@@ -7969,7 +7982,7 @@ en:{tabFile:"File",tabTask:"Task",tabProject:"Project",tabView:"View",tabFormat:
  bulkSub:"My Projects is a temporary holding area. Choosing No deletes these for good.",
  stBrand:"Progress",stHome:"Home",stNew:"New",stOpen:"Open",stHomeBtn:"🏠 Start screen",
  stNewSect:"New",stBlank:"Blank Project",stRecent:"Recent",stMine:"My Projects",
- stMineHint:"Temporary holding area for projects not yet saved to a file — including work left over when the app closed unexpectedly.",
+ stMineHint:"Work left over from a session that ended unexpectedly. A window closed normally leaves nothing here.",
  stNoRecent:"No files opened yet.",stNoMine:"Nothing here — everything has been saved to a file.",
  stUnsaved:"not saved to a file yet",stOldItem:"from an earlier version",
  stMorning:"Good morning",stAfternoon:"Good afternoon",stEvening:"Good evening",
@@ -8056,7 +8069,7 @@ vi:{tabFile:"Tệp",tabTask:"Công việc",tabProject:"Dự án",tabView:"Hiển
  bulkSub:"🗂 Dự án của tôi chỉ là chỗ đỗ tạm. Chọn Không là xóa hẳn những dự án dưới đây.",
  stBrand:"Tiến độ",stHome:"Home",stNew:"New",stOpen:"Open",stHomeBtn:"🏠 Màn hình đầu",
  stNewSect:"Tạo mới",stBlank:"Dự án trống",stRecent:"Gần đây",stMine:"Dự án của tôi",
- stMineHint:"Nơi tạm giữ dự án chưa lưu ra file — gồm cả bản còn dở khi app tắt đột ngột.",
+ stMineHint:"Phần việc còn lại từ lần app tắt đột ngột. Đóng cửa sổ bình thường thì chỗ này không còn gì.",
  stNoRecent:"Chưa mở file nào.",stNoMine:"Trống — mọi dự án đều đã lưu ra file.",
  stUnsaved:"chưa lưu ra file",stOldItem:"từ bản trước",
  stMorning:"Chào buổi sáng",stAfternoon:"Chào buổi chiều",stEvening:"Chào buổi tối",

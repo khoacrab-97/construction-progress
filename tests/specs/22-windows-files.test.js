@@ -4,10 +4,13 @@
 
    · Mỗi dự án là MỘT CỬA SỔ riêng. Mở file .tdtc, hay bấm New khi cửa sổ đã
      có tài liệu, đều ra cửa sổ mới.
-   · Đóng cửa sổ nào thì hỏi đúng tài liệu của cửa sổ đó — hộp Có/Không/Hủy.
-     Chọn "Không" = bỏ hẳn, dự án bị GỠ khỏi 🗂 Dự án của tôi.
-   · KHÔNG còn cơ chế hỏi phục hồi sau khi app tắt đột ngột. Quy tắc đầy đủ
-     cho 🗂 Dự án của tôi sẽ được định nghĩa sau.                            */
+   · 🗂 Dự án của tôi (MP) chỉ giữ BẢN TẠM của tài liệu đang mở: mở dự án mới
+     hay mở .tdtc đều được đẩy vào MP, mọi thay đổi tự lưu tạm ở đó.
+   · Đóng cửa sổ TỬ TẾ thì bản tạm bị dọn — dù chọn Có hay Không. Chỉ "Hủy"
+     mới giữ, vì phiên làm việc còn tiếp.
+   · Nhờ vậy thứ CÒN LẠI trong MP lúc khởi động chính là đồ của lần app chết
+     đột ngột. Không còn cờ đánh dấu, không còn hộp hỏi phục hồi.
+   · File .tdtc trên đĩa không bị đụng tới: nó giữ nguyên bản lưu lần cuối.  */
 const { loadApp, closeApp, makeState } = require("../helpers/env");
 
 const tick = () => new Promise(r => setTimeout(r, 0));
@@ -47,17 +50,39 @@ exports.run = async function (t) {
     $("#svCancel").onclick();
     t.eq(await p, false, "chọn Hủy → ở lại, không đóng");
 
-    t.case("chọn Không thì đóng được, và dự án bị GỠ khỏi My Project");
-    /* Người dùng không muốn thứ dở dang nằm lại trong 🗂 Dự án của tôi. */
+    t.case("chọn Không thì đóng được, và bản tạm bị dọn khỏi MP");
     const idA = APP.currentId;
     p = APP.closeFlow();
     await tick();
     $("#svNo").onclick();
     t.eq(await p, true, "được phép đóng cửa sổ");
-    t.eq(LS.getItem("tiendo_prj_" + idA), null, "đã xóa nội dung dự án");
+    t.eq(LS.getItem("tiendo_prj_" + idA), null, "đã xóa bản tạm");
     t.ok(!APP.loadIndex().some(e => e.id === idA), "đã gỡ khỏi danh mục");
 
-    t.case("chọn Hủy thì KHÔNG xóa gì");
+    t.case("chọn CÓ (đã lưu ra file) thì bản tạm CŨNG bị dọn");
+    /* Đóng cửa sổ tử tế là kết thúc phiên, MP không giữ lại gì. */
+    LS.clear();
+    win._srcUrl = null; win._extDirty = false; win._docDirty = false;
+    makeState(APP, { name: "Đã lưu rồi", tasks: [{ name: "Cống D600", dur: 4 }] });
+    APP.save();
+    const idS = APP.currentId;
+    t.ok(LS.getItem("tiendo_prj_" + idS) !== null, "đang có bản tạm");
+    win._docDirty = false; win._extDirty = false;   // coi như vừa lưu xong
+    t.eq(APP.hasUnsavedWork(), false, "không còn gì chưa lưu");
+    t.eq(await APP.closeFlow(), true, "đóng thẳng, không hỏi");
+    t.eq(LS.getItem("tiendo_prj_" + idS), null, "bản tạm đã dọn dù đã lưu");
+
+    t.case("mở .tdtc cũng được đẩy vào MP và tự lưu tạm");
+    LS.clear();
+    win._srcUrl = "C:/du-an/HaTang.tdtc"; win._srcName = "HaTang.tdtc";
+    makeState(APP, { name: "Hạ tầng", tasks: [{ name: "Cống", dur: 3 }] });
+    APP.save();
+    const eF = APP.loadIndex().find(e => e.id === APP.currentId);
+    t.ok(!!eF, "file .tdtc có mục trong MP");
+    t.eq(eF.srcUrl, "C:/du-an/HaTang.tdtc", "nhớ đường dẫn file gốc");
+    t.ok(LS.getItem("tiendo_prj_" + APP.currentId) !== null, "nội dung được lưu tạm");
+
+    t.case("chọn Hủy thì KHÔNG dọn gì — phiên làm việc còn tiếp");
     LS.clear();
     win._srcUrl = null; win._extDirty = false; win._docDirty = false;
     makeState(APP, { name: "Giữ lại", tasks: [{ name: "Cống D600", dur: 4 }] });

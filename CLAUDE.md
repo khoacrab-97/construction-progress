@@ -97,37 +97,47 @@ Timescale options: Show (1/2/3 tầng), Size %, Scale separator, có Preview.
 * Song ngữ Việt/Anh
 * Tự kiểm tra cập nhật, hỏi trước rồi mới tải – cài – mở lại (xem mục 4)
 
-### 3.6 Lưu \& 🗂 Dự án của tôi
+### 3.6 Lưu \& 🗂 Dự án của tôi (MP)
 
-Hai chỗ chứa dữ liệu, vai trò khác nhau:
+Hai chỗ chứa dữ liệu, vai trò tách bạch:
 
-* **File `.tdtc`** — bản chính thức để lưu trữ và chia sẻ, chỉ được ghi khi
-người dùng bấm lưu.
-* **🗂 Dự án của tôi** (localStorage) — **kho lưu tạm**. `save()` chạy sau mỗi
-lần sửa một ô nên mất điện chỉ mất đúng ô đang gõ dở. Đóng cửa sổ mà chọn
-"Không lưu" thì dự án bị gỡ khỏi đây — người dùng không muốn thứ dở dang nằm
-lại. **Quy tắc đầy đủ cho chỗ này sẽ được định nghĩa sau.**
+* **File `.tdtc`** — bản chính thức, chỉ được ghi khi người dùng bấm lưu.
+* **🗂 Dự án của tôi (MP)** — **chỗ giữ BẢN TẠM của tài liệu đang mở**, không
+phải kho lưu trữ.
 
-**Đóng cửa sổ** — `closeFlow()`, chỉ một hộp cho tài liệu của cửa sổ đó:
+Vòng đời một bản tạm:
 
 ```
-Hộp Có / Không / Hủy   (chỉ hiện khi hasUnsavedWork())
-  Có     → ghi ra .tdtc rồi đóng
-  Không  → bỏ hẳn: GỠ dự án khỏi 🗂 Dự án của tôi luôn
-  Hủy    → ở lại
+Mở dự án mới HOẶC mở file .tdtc
+        ↓
+app tự đẩy tài liệu vào MP; save() chạy sau mỗi lần sửa một ô
+        ↓
+┌─ Đóng cửa sổ TỬ TẾ ─────────────────────────────────────┐
+│  Có (ghi ra .tdtc)   ┐                                  │
+│  Không (bỏ thay đổi) ┘→ bản tạm bị DỌN khỏi MP          │
+│  Hủy → giữ nguyên, phiên làm việc còn tiếp              │
+└─────────────────────────────────────────────────────────┘
+        hoặc
+┌─ App CHẾT ĐỘT NGỘT ─────────────────────────────────────┐
+│  bản tạm nằm lại MP                                     │
+│  file .tdtc trên đĩa GIỮ NGUYÊN bản lưu lần cuối        │
+└─────────────────────────────────────────────────────────┘
 ```
 
-Mỗi dự án là một cửa sổ riêng nên đóng cửa sổ nào thì hỏi đúng cửa sổ đó.
+Hệ quả quan trọng: **thứ còn lại trong MP lúc khởi động chính là đồ của lần
+app chết đột ngột** — vì đóng tử tế thì đã dọn rồi. Không cần cờ đánh dấu,
+không cần dò tiến trình, và **không có hộp thoại nào hỏi phục hồi**: bản dở
+dang chỉ nằm trong danh sách MP ở Backstage, người dùng tự mở nếu muốn.
 
-Cửa sổ mở cho lệnh **New** được nạp kèm hash `#blank` nên vào **thẳng bảng
-trống**, không dừng ở Backstage — người dùng đã chọn "dự án trống" rồi.
+> **Đã gỡ (26.08.008).** Bản trước có cờ `unsaved` trên từng mục, hộp 🛟 liệt
+> kê bản dở dang lúc khởi động, câu hỏi trước khi mở đè một `.tdtc`, và hộp
+> hỏi hàng loạt lúc đóng cửa sổ. Người dùng yêu cầu bỏ hết. Quy tắc ở trên
+> đạt cùng mục đích mà không cần cơ chế nào thêm.
 
-> **Đã gỡ hẳn (26.08.008).** Trước đây có cơ chế phục hồi sau khi app tắt đột
-> ngột: cờ `unsaved` trên từng mục, hộp 🛟 liệt kê bản dở dang lúc khởi động,
-> câu hỏi trước khi mở đè một `.tdtc`, và hộp hỏi hàng loạt lúc đóng cửa sổ.
-> Người dùng yêu cầu bỏ toàn bộ và đưa 🗂 Dự án của tôi về đúng nghĩa kho lưu
-> tạm. Quy tắc mới cho chỗ này sẽ được định nghĩa sau. Ghi lại đây để sau này
-> không ai tưởng là làm sót.
+**Dự án trống** luôn mở **thêm một cửa sổ**. Ngoại lệ duy nhất: cửa sổ vừa mở
+app, chưa có tài liệu và đang đứng ở Backstage thì dùng luôn cửa sổ đó — nếu
+không sẽ để lại một cửa sổ Backstage trống chẳng dùng vào việc gì. Điều kiện
+này phải xét **trước** khi đóng Backstage, nếu không nó luôn sai.
 
 \---
 
@@ -474,8 +484,8 @@ nhân thường gặp khi người dùng báo "chạy quan hệ không đúng".
 9. **Dòng tổng dự án** luôn ở đầu, mang số 0, in đậm mặc định, không giảm cấp được.
 10. **Auto fit** = phạm vi từ ngày sớm nhất đến muộn nhất, cộng chỗ cho nhãn chữ.
 Khi bật, **Size % và cuộn vô hạn không có tác dụng** (mâu thuẫn bản chất).
-11. **Chọn "Không lưu" lúc đóng cửa sổ là bỏ hẳn**: không ghi ra `.tdtc`, và
-dự án bị gỡ luôn khỏi 🗂 Dự án của tôi.
+11. **Đóng cửa sổ tử tế thì bản tạm trong MP bị dọn**, dù chọn Có hay Không.
+Chỉ "Hủy" mới giữ. Xem 3.6.
 
 \---
 
@@ -524,7 +534,7 @@ song ngữ, biểu đồ nhân lực.
 
 **Lưu** — nhắc lưu kiểu MS Project khi đóng cửa sổ, cho cả dự án chưa có file.
 
-**Kiểm thử** — **22 bộ test, 866 assertion**, chạy trên jsdom, nằm trong `tests/`.
+**Kiểm thử** — **22 bộ test, 873 assertion**, chạy trên jsdom, nằm trong `tests/`.
 Chạy bằng `npm test`. Xem `tests/README.md` để biết cách viết thêm và quy trình
 chụp ảnh SVG.
 
@@ -579,7 +589,7 @@ hoạch và thực hiện. Phụ thuộc việc 1.
 |11|**Không đổi `publish` trong `package.json`**; không bật lại `verifyUpdateCodeSignature` khi chưa ký mã|Cập nhật thất bại im lặng trên mọi máy|
 |12|**Không bỏ `latest.yml` / `.blockmap`** khỏi asset release|`electron-updater` đọc không được, tự cập nhật chết|
 |13|**Không để `resetSession()` bỏ sót `_srcUrl` / `_srcName`** khi cắt liên kết file|Bấm New xong, cửa sổ vẫn "giữ" file cũ: tiêu đề hiện tên cũ và `save()` gắn đường dẫn cũ vào mục danh mục của dự án MỚI. Đã xảy ra|
-|14|**Chỉ được xóa mục trong 🗂 Dự án của tôi ở đúng một chỗ**: nhánh "Không lưu" của `closeFlow()`|Người dùng chốt: thứ dở dang không được nằm lại. Xóa ở chỗ khác là mất dữ liệu ngoài ý muốn|
+|14|**Chỉ được dọn MP ở đúng một chỗ**: `closeFlow()` sau khi người dùng đã trả lời (trừ Hủy)|Dọn ở chỗ khác là mất dữ liệu ngoài ý muốn. Dọn thiếu thì MP đầy rác và mất luôn dấu hiệu "app đã chết"|
 |15|**Không đưa đường dẫn file (hay bất cứ trạng thái tài liệu nào) về biến dùng chung trong `main.js`**|Lưu ở cửa sổ này ghi đè file của cửa sổ kia|
 
 ### 13.2 Bắt buộc làm mỗi lần sửa
