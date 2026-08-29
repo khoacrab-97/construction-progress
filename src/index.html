@@ -1809,6 +1809,51 @@ function releaseOpen(id){
 }
 /* Báo cho tiến trình chính biết cửa sổ này đang giữ file nào — nguồn sự thật
    cho nút Lưu. Không có nó thì Lưu ở cửa sổ A có thể ghi vào file cửa sổ B. */
+/* ===== Bản tạm ra FILE, không chỉ localStorage =====
+   localStorage dồn xuống đĩa theo lô nên giết đột ngột là mất phần chưa dồn.
+   Rule: "tắt đột xuất thì MP giữ phiên bản chưa lưu" — nên phải ghi ra file
+   bằng lệnh đồng bộ. Giới hạn nhịp để đĩa không phải quay theo từng ô gõ. */
+const MP_EVERY_MS = 1500;
+function mpFlush(){
+  window._mpTimer = null;
+  if(!(window.desktop && window.desktop.mpWrite) || !currentId) return;
+  try{
+    window.desktop.mpWrite(currentId, JSON.stringify({
+      name: state.name, srcUrl: window._srcUrl || null,
+      updated: Date.now(), state: state
+    }));
+  }catch(e){}
+}
+function mpTouch(){
+  if(!(window.desktop && window.desktop.mpWrite)) return;
+  if(window._mpTimer) return;              // đã hẹn rồi, khỏi hẹn chồng
+  window._mpTimer = setTimeout(mpFlush, MP_EVERY_MS);
+}
+function mpDrop(id){
+  try{ if(window.desktop && window.desktop.mpDrop) window.desktop.mpDrop(id); }catch(e){}
+}
+/* Khởi động: kéo bản tạm từ file về localStorage. Bản trên file luôn mới hơn
+   hoặc bằng, vì nó chạm đĩa ngay còn localStorage thì trễ. */
+async function mpRestore(){
+  if(!(window.desktop && window.desktop.mpList)) return 0;
+  let rows=[];
+  try{ rows = await window.desktop.mpList(); }catch(e){ return 0; }
+  if(!rows || !rows.length) return 0;
+  const ix = loadIndex();
+  let count=0;
+  rows.forEach(r=>{
+    let o=null; try{ o=JSON.parse(r.payload); }catch(e){}
+    if(!o || !o.state) return;
+    LS.set(prjKey(r.id), JSON.stringify(o.state));
+    const e2 = ix.find(x=>x.id===r.id);
+    if(e2){ e2.name=o.name||e2.name; e2.updated=o.updated||e2.updated; if(o.srcUrl) e2.srcUrl=o.srcUrl; }
+    else ix.push({ id:r.id, name:o.name||"Dự án", updated:o.updated||Date.now(),
+                   srcUrl:o.srcUrl||undefined });
+    count++;
+  });
+  saveIndex(ix);
+  return count;
+}
 function tellPath(p){
   try{
     if(window.desktop && window.desktop.setProjectPath)
@@ -1925,6 +1970,7 @@ function save(){
     }
   }catch(e){}
   if(!window._saveQuiet) window._docDirty=true;
+  mpTouch();
   if(fileHandle && !fileDirty){ fileDirty=true; updateFileLabel(); }
   if(window._srcUrl) window._extDirty=true; // mở từ .tdtc double-click: có sửa đổi chưa ghi ra file
 }
@@ -2078,6 +2124,7 @@ function baseNameOf(p){
   return i>=0 ? s.slice(i+1) : s;
 }
 function purgeProject(id){
+  mpDrop(id);
   try{
     LS.del(prjKey(id));
     saveIndex(loadIndex().filter(x=>x.id!==id));
@@ -7584,12 +7631,13 @@ function renderStart(){
     const list=loadIndex().filter(e=>e && e.id!==currentId && !openElsewhere(e.id))
       .slice().sort((a,b)=>(b.updated||0)-(a.updated||0));
     if(!list.length){ const d=document.createElement("div"); d.className="st-empty"; d.textContent=t("stNoMine"); mn.appendChild(d); }
-    /* Dòng chính là TÊN FILE — "📁 Dự án mới" nhìn vào không hiểu là gì.
-       Dự án chưa từng ghi ra file thì đành lấy tên dự án, và nói rõ ở dòng
-       dưới là chưa có file. */
+    /* Dòng chính là TÊN FILE. KHÔNG hiện đường dẫn: thứ nằm ở đây là BẢN TẠM,
+       chỗ của nó là trong MP chứ không phải ở đường dẫn kia — hiện lên chỉ
+       làm người dùng tưởng mở đường dẫn đó ra là thấy phần gõ dở.
+       Dự án chưa từng ghi ra file thì lấy tên dự án và nói rõ ở dòng dưới. */
     else list.forEach(e=>mn.appendChild(stRow(FILE_ICON,
       e.srcUrl? baseNameOf(e.srcUrl) : (e.name||"Dự án"),
-      e.srcUrl || t("stUnsaved"),
+      e.srcUrl? "" : t("stUnsaved"),
       new Date(e.updated||Date.now()).toLocaleDateString("vi-VN"),
       ()=>{ closeStart(); switchProject(e.id); })));
   }
@@ -7773,6 +7821,7 @@ async function initDesktopIntegration() {
     window.desktop.onCloseRequest(() => { confirmDesktopClose(); });
   }
   try {
+    await mpRestore();   // kéo bản tạm từ file về trước khi quyết hiện gì
     const initial = await window.desktop.getInitialOpenFile();
     if (initial) setTimeout(() => openDesktopFileRequest(initial), 0);
     /* Mở app trống → màn hình đầu, như MS Project. Trừ cửa sổ dựng cho lệnh
@@ -8193,7 +8242,7 @@ window.APP = {
   hasPST, pstOrdinal, idxOfId, setProjectSummary, children, insertTasksAt, setScheduleMode, moveBlockTo, moveColumn, toggleCollapse, computeHidden, colIdxOf, autoRowH, barTextFS,
   colLabelOf, autoFitCol, autoFitRows, textPx, paintColSel, fmtStyleCss,
   switchProject, newProject, newProjectWindow, duplicateProject, deleteProject, loadIndex, saveIndex, prjKey, updateFileLabel, openExternalData,
-  isDiskDirty, hasUnsavedWork, baseNameOf, openElsewhere,
+  isDiskDirty, hasUnsavedWork, baseNameOf, openElsewhere, mpFlush, mpTouch, mpDrop, mpRestore,
   loadRecent, pushRecent, renderStart, openStart, closeStart, RECENTKEY, stPane, renderOpenPane, renderSaveAsPane, stHomeTab, purgeProject, claimOpen, releaseOpen, loadOpenMap, OPENKEY, WINKEY, closeFlow, save,
   get currentId(){ return currentId; },
   get colSel(){ return colSel; },

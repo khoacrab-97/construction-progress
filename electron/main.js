@@ -225,6 +225,42 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
 
+/* ===== Bản tạm của 🗂 Dự án của tôi =====
+   localStorage giữ dữ liệu trong RAM rồi mới dồn xuống đĩa theo lô, nên bị
+   giết đột ngột là mất phần chưa dồn — đo được: gõ xong chờ 8 giây rồi giết
+   vẫn mất. Mà "tắt đột xuất thì MP giữ phiên bản chưa lưu" là RULE, nên bản
+   tạm phải ghi thẳng ra file bằng lệnh đồng bộ. */
+function mpDir() {
+  const d = path.join(app.getPath("userData"), "mp");
+  if (!fsSync.existsSync(d)) fsSync.mkdirSync(d, { recursive: true });
+  return d;
+}
+function mpFile(id) {
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(String(id || ""))) return null;
+  return path.join(mpDir(), id + ".json");
+}
+ipcMain.handle("mp:write", (_event, id, payload) => {
+  const f = mpFile(id);
+  if (!f || typeof payload !== "string") return false;
+  try { fsSync.writeFileSync(f, payload, "utf8"); return true; } catch (e) { return false; }
+});
+ipcMain.handle("mp:drop", (_event, id) => {
+  const f = mpFile(id);
+  if (!f) return false;
+  try { if (fsSync.existsSync(f)) fsSync.unlinkSync(f); return true; } catch (e) { return false; }
+});
+ipcMain.handle("mp:list", () => {
+  try {
+    return fsSync.readdirSync(mpDir())
+      .filter(f => f.endsWith(".json"))
+      .map(f => {
+        try { return { id: f.slice(0, -5), payload: fsSync.readFileSync(path.join(mpDir(), f), "utf8") }; }
+        catch (e) { return null; }
+      })
+      .filter(Boolean);
+  } catch (e) { return []; }
+});
+
 ipcMain.handle("app:get-version", () => app.getVersion());
 
 ipcMain.handle("app:get-initial-open-file", (event) => {

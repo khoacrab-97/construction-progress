@@ -99,11 +99,15 @@ Timescale options: Show (1/2/3 tầng), Size %, Scale separator, có Preview.
 
 ### 3.6 Lưu \& 🗂 Dự án của tôi (MP)
 
+Cột **Dự án của tôi** chỉ hiện **tên file**, KHÔNG hiện đường dẫn: thứ nằm đó
+là bản tạm, chỗ của nó là trong MP chứ không phải ở đường dẫn kia.
+
 Hai chỗ chứa dữ liệu, vai trò tách bạch:
 
 * **File `.tdtc`** — bản chính thức, chỉ được ghi khi người dùng bấm lưu.
 * **🗂 Dự án của tôi (MP)** — **chỗ giữ BẢN TẠM của tài liệu đang mở**, không
-phải kho lưu trữ.
+phải kho lưu trữ. Bản tạm ghi ra **file thật** trong `<userData>/mp/<id>.json`,
+không phải chỉ `localStorage` — xem ô cảnh báo bên dưới.
 
 Vòng đời một bản tạm:
 
@@ -123,6 +127,16 @@ app tự đẩy tài liệu vào MP; save() chạy sau mỗi lần sửa một �
 │  file .tdtc trên đĩa GIỮ NGUYÊN bản lưu lần cuối        │
 └─────────────────────────────────────────────────────────┘
 ```
+
+> **⚠ Vì sao bản tạm phải ghi ra file.** `localStorage` của Chromium giữ dữ
+> liệu trong RAM rồi mới dồn xuống đĩa theo lô. Đóng app tử tế thì nó xả hết
+> nên không thấy vấn đề, nhưng **bị giết đột ngột là mất phần chưa dồn** — đo
+> được: gõ xong chờ 8 giây rồi giết, phần vừa gõ vẫn mất sạch. Mà "tắt đột
+> xuất thì MP giữ phiên bản chưa lưu" là RULE, nên bản tạm phải đi qua
+> `fs.writeFileSync` (kênh `mp:write`), giới hạn nhịp 1,5 giây một lần.
+> Lúc khởi động `mpRestore()` kéo các file đó về `localStorage` rồi mọi thứ
+> phía sau chạy như cũ. **Đừng bỏ tầng file này mà quay lại chỉ dùng
+> `localStorage`** — rule sẽ sai trở lại mà không ai thấy.
 
 Hệ quả quan trọng: **thứ còn lại trong MP lúc khởi động chính là đồ của lần
 app chết đột ngột** — vì đóng tử tế thì đã dọn rồi. Không cần cờ đánh dấu,
@@ -591,6 +605,7 @@ hoạch và thực hiện. Phụ thuộc việc 1.
 |13|**Không để `resetSession()` bỏ sót `_srcUrl` / `_srcName`** khi cắt liên kết file|Bấm New xong, cửa sổ vẫn "giữ" file cũ: tiêu đề hiện tên cũ và `save()` gắn đường dẫn cũ vào mục danh mục của dự án MỚI. Đã xảy ra|
 |14|**Chỉ được dọn MP ở đúng một chỗ**: `closeFlow()` sau khi người dùng đã trả lời (trừ Hủy)|Dọn ở chỗ khác là mất dữ liệu ngoài ý muốn. Dọn thiếu thì MP đầy rác và mất luôn dấu hiệu "app đã chết"|
 |15|**Không đưa đường dẫn file (hay bất cứ trạng thái tài liệu nào) về biến dùng chung trong `main.js`**|Lưu ở cửa sổ này ghi đè file của cửa sổ kia|
+|16|**Không bỏ tầng file của bản tạm** (`mp:write` / `mp:drop` / `mp:list`, `mpRestore()`) để quay về chỉ dùng `localStorage`|`localStorage` dồn xuống đĩa theo lô nên mất điện là mất phần chưa dồn. Rule "tắt đột xuất thì MP giữ phiên bản chưa lưu" sẽ sai trở lại, âm thầm|
 
 ### 13.2 Bắt buộc làm mỗi lần sửa
 
