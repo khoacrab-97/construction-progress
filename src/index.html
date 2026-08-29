@@ -402,7 +402,7 @@ textarea{width:100%;height:90px;border:1px solid var(--line-strong);border-radiu
   cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;
   text-align:left;font-family:inherit;width:100%;color:#f0f0f0}
 .st-item:hover{background:#565656;border-color:#545454}
-.st-item .ic{font-size:17px;flex:0 0 auto}
+.st-item .ic{font-size:17px;flex:0 0 auto;display:flex;align-items:center}
 .st-item .tx{flex:1;min-width:0}
 .st-item .nm{font-size:13.5px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .st-item .pa{font-size:11.5px;color:#bdbdbd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -7544,10 +7544,22 @@ function stHello(){
   const h=new Date().getHours();
   return h<11? t("stMorning") : (h<18? t("stAfternoon") : t("stEvening"));
 }
+/* Icon file dự án: vẽ theo đúng tỉ lệ icon app trong tools/make-icon.js.
+   Dùng màu đặc thay vì chuyển sắc — ở 18px không nhìn ra chuyển sắc, mà lại
+   khỏi phải đặt id cho gradient (lặp id khi vẽ nhiều dòng). */
+const FILE_ICON =
+  '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">'
+  + '<rect x="1" y="1" width="18" height="18" rx="4.3" fill="#1f6fb2"/>'
+  + '<rect x="3.6" y="5.0" width="8.8" height="2.3" rx="1.15" fill="#fff"/>'
+  + '<rect x="6.0" y="8.9" width="10.6" height="2.3" rx="1.15" fill="#ffc457"/>'
+  + '<rect x="4.5" y="12.7" width="9.5" height="2.3" rx="1.15" fill="#fff" opacity=".86"/>'
+  + '</svg>';
 function stRow(icon, name, sub, right, onclick){
   const b=document.createElement("button");
   b.className="st-item"; b.type="button";
-  const i=document.createElement("span"); i.className="ic"; i.textContent=icon;
+  const i=document.createElement("span"); i.className="ic";
+  // Chuỗi bắt đầu bằng "<" là markup của chính app, không phải dữ liệu người dùng
+  if(String(icon).charAt(0)==="<") i.innerHTML=icon; else i.textContent=icon;
   const tx=document.createElement("span"); tx.className="tx";
   const nm=document.createElement("div"); nm.className="nm"; nm.textContent=name;
   tx.appendChild(nm);
@@ -7572,8 +7584,12 @@ function renderStart(){
     const list=loadIndex().filter(e=>e && e.id!==currentId && !openElsewhere(e.id))
       .slice().sort((a,b)=>(b.updated||0)-(a.updated||0));
     if(!list.length){ const d=document.createElement("div"); d.className="st-empty"; d.textContent=t("stNoMine"); mn.appendChild(d); }
-    else list.forEach(e=>mn.appendChild(stRow("📁",
-      e.name||"Dự án", e.srcUrl? baseNameOf(e.srcUrl) : t("stUnsaved"),
+    /* Dòng chính là TÊN FILE — "📁 Dự án mới" nhìn vào không hiểu là gì.
+       Dự án chưa từng ghi ra file thì đành lấy tên dự án, và nói rõ ở dòng
+       dưới là chưa có file. */
+    else list.forEach(e=>mn.appendChild(stRow(FILE_ICON,
+      e.srcUrl? baseNameOf(e.srcUrl) : (e.name||"Dự án"),
+      e.srcUrl || t("stUnsaved"),
       new Date(e.updated||Date.now()).toLocaleDateString("vi-VN"),
       ()=>{ closeStart(); switchProject(e.id); })));
   }
@@ -7609,7 +7625,7 @@ function stGroupRecent(box, onPick){
   grp.forEach(([cap,items])=>{
     if(!items.length) return;
     const h=document.createElement("div"); h.className="st-grp"; h.textContent=cap; box.appendChild(h);
-    items.forEach(e=>box.appendChild(stRow("📄", e.name||baseNameOf(e.path), e.path,
+    items.forEach(e=>box.appendChild(stRow(FILE_ICON, e.name||baseNameOf(e.path), e.path,
       new Date(e.ts||now).toLocaleDateString("vi-VN"), ()=>onPick(e))));
   });
   return list.length;
