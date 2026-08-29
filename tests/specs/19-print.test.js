@@ -166,7 +166,7 @@ exports.run = function (t) {
     t.case("thanh trạng thái và các hộp thoại đều là con trực tiếp của body");
     /* Nếu một ngày nào đó chúng bị bọc thêm một lớp div thì luật body>* hết
        tác dụng — canh luôn ở đây. */
-    ["statusBar", "printOverlay", "prevOverlay", "svOverlay", "recOverlay", "updOverlay"]
+    ["statusBar", "printOverlay", "prevOverlay", "svOverlay", "updOverlay", "startOverlay"]
       .forEach(id => {
         const el = doc.getElementById(id);
         t.ok(el && el.parentElement === doc.body, "#" + id + " là con trực tiếp của body");

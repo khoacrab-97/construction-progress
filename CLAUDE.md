@@ -93,73 +93,40 @@ Timescale options: Show (1/2/3 tầng), Size %, Scale separator, có Preview.
 * Biểu đồ nhân lực (histogram) theo cột Nhân lực
 * Lịch làm việc: ngày nghỉ tuần + ngày lễ
 * Lưu/mở file `.tdtc`, nhiều dự án trong máy
-* Nhắc lưu khi tắt app, và phục hồi bản dở dang sau khi app đóng bất thường (xem 3.6)
+* Nhắc lưu khi đóng cửa sổ; 🗂 Dự án của tôi là kho lưu tạm (xem 3.6)
 * Song ngữ Việt/Anh
 * Tự kiểm tra cập nhật, hỏi trước rồi mới tải – cài – mở lại (xem mục 4)
 
-### 3.6 Lưu \& phục hồi
+### 3.6 Lưu \& 🗂 Dự án của tôi
 
-Hai chỗ chứa dữ liệu song song, có vai trò khác nhau:
+Hai chỗ chứa dữ liệu, vai trò khác nhau:
 
-* **🗂 Dự án của tôi** (localStorage) — **bãi đỗ tạm và lưới an toàn**, KHÔNG
-phải kho lưu trữ. `save()` chạy sau mỗi lần sửa một ô, nên mất điện chỉ mất
-đúng ô đang gõ dở. Đóng cửa sổ tử tế thì chỗ này được dọn sạch, nên **thứ còn
-sót lúc khởi động chính là đồ của lần app chết bất thường**.
 * **File `.tdtc`** — bản chính thức để lưu trữ và chia sẻ, chỉ được ghi khi
 người dùng bấm lưu.
+* **🗂 Dự án của tôi** (localStorage) — **kho lưu tạm**. `save()` chạy sau mỗi
+lần sửa một ô nên mất điện chỉ mất đúng ô đang gõ dở, và mở app lần sau dự án
+vẫn còn trong danh sách. **Không có quy tắc dọn dẹp nào** — app không tự xóa
+gì của người dùng ở đây.
 
-> **Đổi so với bản đầu (26.08.003).** Lúc đầu 🗂 Dự án của tôi là kho lưu trữ
-> lâu dài, và phục hồi thì **ghi đè** file gốc. Người dùng đổi ý: nó chỉ là chỗ
-> đỗ tạm, và phục hồi **lưu ra một file `.tdtc` khác**, không đụng bản gốc.
-> Ghi lại đây để sau này không ai tưởng là làm ẩu.
-
-Cầu nối giữa hai chỗ là cờ **`unsaved`** trên từng mục của `tiendo\_idx\_v1`:
-"bản trong máy mới hơn file trên đĩa".
+**Đóng cửa sổ** — `closeFlow()`, chỉ một hộp cho tài liệu của cửa sổ đó:
 
 ```
-bật   ← save(), cho MỌI dự án chưa ghi ra .tdtc (kể cả dự án mới chưa có file)
-tắt   ← ghi ra .tdtc thành công
-tắt   ← người dùng chủ động chọn "Không lưu" lúc tắt app
-```
-
-Mục còn sót từ bản cũ không mang cờ này, nên không bị hiểu nhầm là đồ sót sau
-khi app chết — và cũng không bị xóa.
-
-Vì vậy **cờ còn sót lúc khởi động = lần trước app chết bất thường** — tắt tử tế
-thì một trong hai nhánh của `closeFlow()` đã xóa cờ rồi. Không cần nhịp tim,
-không cần file tạm, không cần dò tiến trình.
-
-**Tắt app thủ công** — `closeFlow()`:
-
-```
-Hộp Có / Không / Hủy   (chỉ hiện khi isDiskDirty())
+Hộp Có / Không / Hủy   (chỉ hiện khi hasUnsavedWork())
   Có     → ghi ra .tdtc rồi đóng
+  Không  → đóng luôn; dự án VẪN nằm lại trong 🗂 Dự án của tôi
   Hủy    → ở lại
-  Không  → dự án ĐÃ gắn file  : đóng luôn, xóa cờ (lần sau không nhắc phục hồi)
-         → dự án CHƯA có file : XÓA HẲN khỏi danh mục
-
-rồi resolveParked(): cửa sổ này còn đỗ lại dự án nào chưa có file không?
-  Có     → lần lượt mở hộp Lưu thành cho từng cái (hủy giữa chừng = ở lại)
-  Không  → xóa hẳn tất cả
 ```
 
-`resolveParked()` **chỉ đụng mục của cửa sổ này** (`window._parked`) — mục của
-cửa sổ khác và mục còn sót từ bản cũ giữ nguyên.
+Mỗi dự án là một cửa sổ riêng nên đóng cửa sổ nào thì hỏi đúng cửa sổ đó.
 
-**Phục hồi** — hai lối vào, đều chỉ hỏi **một lần** cho mỗi mục:
+> **Đã gỡ hẳn (26.08.008).** Trước đây có cơ chế phục hồi sau khi app tắt đột
+> ngột: cờ `unsaved` trên từng mục, hộp 🛟 liệt kê bản dở dang lúc khởi động,
+> câu hỏi trước khi mở đè một `.tdtc`, và hộp hỏi hàng loạt lúc đóng cửa sổ.
+> Người dùng yêu cầu bỏ toàn bộ và đưa 🗂 Dự án của tôi về đúng nghĩa kho lưu
+> tạm. Quy tắc mới cho chỗ này sẽ được định nghĩa sau. Ghi lại đây để sau này
+> không ai tưởng là làm sót.
 
-|Lối vào|Hành vi|
-|-|-|
-|Khởi động app|`maybeShowRecovery()` liệt kê mọi mục còn cờ. Mỗi dòng có **Mở lại** / **Bỏ**, kèm ô tick để bỏ hàng loạt. "Để sau" giữ nguyên, lần mở sau hỏi lại những mục chưa xử lý|
-|Mở đúng file đó|`openExternalDataAsk()` hỏi trước khi nạp. Trước đây `openExternalData()` **âm thầm đè** bản mới trong máy bằng nội dung cũ của file|
-
-`recoverOne()` nạp bản dở dang rồi **cắt liên kết tới file gốc** (`_srcUrl` về
-`null`, gọi `project:set-path` với `null`). Vì vậy 💾 Lưu mở hộp **Lưu thành**
-và ra một `.tdtc` KHÁC — **phục hồi không bao giờ ghi đè bản gốc**. Muốn gộp lại
-thì người dùng tự chọn đè lên nó.
-
-`isDiskDirty()` tính cả dự án **chưa từng ghi ra `.tdtc`** (`_docDirty` \+
-`stateHasContent()`); trước đây nhánh này luôn "sạch" nên tắt app không hỏi gì.
+\---
 
 ### 3.7 Backstage (tab File) và hàng tiêu đề
 
@@ -302,7 +269,7 @@ lưu vào `localStorage` và xuất ra file `.tdtc`.
 
 |Khóa|Nội dung|
 |-|-|
-|`tiendo\_idx\_v1`|Danh mục dự án `\[{id, name, updated, srcUrl, unsaved}]` — `unsaved` xem 3.6|
+|`tiendo\_idx\_v1`|Danh mục dự án `\[{id, name, updated, srcUrl}]`|
 |`tiendo\_cur\_v1`|Id dự án đang mở|
 |`tiendo\_prj\_<id>`|Toàn bộ `state` của một dự án|
 |`tiendo\_gantt\_v1`|Khóa bản cũ (thời còn 1 dự án duy nhất) — **giữ để chuyển đổi, không xóa**|
@@ -504,8 +471,8 @@ nhân thường gặp khi người dùng báo "chạy quan hệ không đúng".
 9. **Dòng tổng dự án** luôn ở đầu, mang số 0, in đậm mặc định, không giảm cấp được.
 10. **Auto fit** = phạm vi từ ngày sớm nhất đến muộn nhất, cộng chỗ cho nhãn chữ.
 Khi bật, **Size % và cuộn vô hạn không có tác dụng** (mâu thuẫn bản chất).
-11. **Chọn "Không lưu" là quyết định dứt khoát**: cờ `unsaved` bị xóa, lần mở sau
-không nhắc phục hồi nữa. Mỗi mục dở dang chỉ được hỏi đúng một lần (xem 3.6).
+11. **Chọn "Không lưu" lúc đóng cửa sổ** chỉ có nghĩa là không ghi ra `.tdtc`.
+Dự án vẫn nằm lại trong 🗂 Dự án của tôi — app không xóa gì của người dùng.
 
 \---
 
@@ -552,10 +519,9 @@ thả, token tự điền, xem trước kiểu MS Project, chia trang theo chi�
 **Hạ tầng** — tự tải/tự cài bản mới qua electron-updater, nhắc lưu kiểu MS Project,
 song ngữ, biểu đồ nhân lực.
 
-**Lưu \& phục hồi** — nhắc lưu kiểu MS Project cho cả dự án chưa có file, hộp
-phục hồi sau khi app đóng bất thường, không còn cảnh file cũ đè bản mới (xem 3.6).
+**Lưu** — nhắc lưu kiểu MS Project khi đóng cửa sổ, cho cả dự án chưa có file.
 
-**Kiểm thử** — **22 bộ test, 942 assertion**, chạy trên jsdom, nằm trong `tests/`.
+**Kiểm thử** — **22 bộ test, 860 assertion**, chạy trên jsdom, nằm trong `tests/`.
 Chạy bằng `npm test`. Xem `tests/README.md` để biết cách viết thêm và quy trình
 chụp ảnh SVG.
 
@@ -609,8 +575,8 @@ hoạch và thực hiện. Phụ thuộc việc 1.
 |10|**Không đụng chuỗi IPC cập nhật** (`updates:check`, `updates:download`, `updates:quit-and-install`) nối `preload.js` ↔ `main.js` ↔ `update-service.js`|Đứt là máy người dùng không nhận được bản mới|
 |11|**Không đổi `publish` trong `package.json`**; không bật lại `verifyUpdateCodeSignature` khi chưa ký mã|Cập nhật thất bại im lặng trên mọi máy|
 |12|**Không bỏ `latest.yml` / `.blockmap`** khỏi asset release|`electron-updater` đọc không được, tự cập nhật chết|
-|13|**Không bỏ cờ `unsaved`** trong danh mục, cũng không bỏ `closeFlow()` / `resolveParked()` / `openExternalDataAsk()`|Mất cơ chế phục hồi sau khi app chết; `openExternalData()` sẽ đè bản mới trong máy bằng nội dung cũ của file, âm thầm|
-|14|**Không để `recoverOne()` ghi đè file gốc** — phải cắt `_srcUrl` và gọi `project:set-path` với `null`|Người dùng đã chốt: phục hồi lưu ra file khác, bản gốc chỉ đổi khi họ chủ động đè lên|
+|13|**Không để `resetSession()` bỏ sót `_srcUrl` / `_srcName`** khi cắt liên kết file|Bấm New xong, cửa sổ vẫn "giữ" file cũ: tiêu đề hiện tên cũ và `save()` gắn đường dẫn cũ vào mục danh mục của dự án MỚI. Đã xảy ra|
+|14|**Không tự xóa mục nào trong 🗂 Dự án của tôi**|Người dùng đã chốt: đó là kho lưu tạm, app không dọn hộ. Quy tắc mới sẽ định nghĩa sau|
 |15|**Không đưa đường dẫn file (hay bất cứ trạng thái tài liệu nào) về biến dùng chung trong `main.js`**|Lưu ở cửa sổ này ghi đè file của cửa sổ kia|
 
 ### 13.2 Bắt buộc làm mỗi lần sửa
